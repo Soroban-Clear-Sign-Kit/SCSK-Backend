@@ -25,3 +25,20 @@ export interface Invocation {
   args: DecodedArg[];
   specSource: 'wasm' | 'sac-builtin' | 'injected' | 'none';
 }
+
+export interface AuthEntry {
+  credentials:
+    | { type: 'source-account' }
+    | { type: 'address'; address: string; nonce: string; signatureExpirationLedger: number; signed: boolean };
+  root: AuthNode;
+}
+
+export interface AuthNode {
+  kind: 'contract-fn' | 'create-contract' | 'create-contract-v2';
+  contractId?: string;
+  functionName?: string;
+  args?: DecodedArg[]; // for contract-fn
+  details?: Record<string, string>; // for create-contract
+  children: AuthNode[];
+  depth: number;
+}
