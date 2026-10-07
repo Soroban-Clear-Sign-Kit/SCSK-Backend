@@ -42,3 +42,12 @@ export interface AuthNode {
   children: AuthNode[];
   depth: number;
 }
+
+export interface BalanceDelta {
+  tokenContractId: string;
+  account: string;
+  delta: string; // decimal string, signed
+  symbol?: string;
+  decimals?: number;
+  formatted?: string;
+}
