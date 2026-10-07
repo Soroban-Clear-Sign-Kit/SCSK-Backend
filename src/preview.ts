@@ -38,9 +38,25 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
 
   try {
      const envResult = parseEnvelope(input.xdr, input.networkPassphrase);
+     if (!envResult.success) {
+        addWarning([envResult.error]);
+        return {
+           version: 1,
+           risk: 'blocked',
+           warnings: warnings.map(w => ({ ...w, severity: 'blocked' })),
+           network: { passphrase: input.networkPassphrase, verified: false },
+           envelope: { source: '', sequence: '', fee: '', operations: [] },
+           auth: [],
+           simulation: { status: 'skipped' },
+           effects: [],
+           summary: [],
+           raw: { xdr: input.xdr }
+        };
+     }
+     
      addWarning(envResult.warnings);
 
-     if (!envResult.tx || envResult.warnings.some(w => w.code === 'ENVELOPE_MALFORMED' || w.code === 'ENVELOPE_TOO_LARGE' || w.code === 'NETWORK_MISMATCH')) {
+     if (envResult.warnings.some(w => w.code === 'NETWORK_MISMATCH')) {
         return {
            version: 1,
            risk: 'blocked',
@@ -55,8 +71,8 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         };
      }
 
-     const tx = envResult.tx;
-     const innerTx = envResult.innerTransaction!;
+     const innerTx = envResult.innerTransaction;
+     const tx = innerTx; // For `simulateTransaction` which accepts Transaction or FeeBumpTransaction, wait simulateTransaction accepts FeeBumpTransaction directly? Yes but actually innerTx is enough to simulate. Wait, if it's a fee bump, simulateTransaction accepts fee bump but innerTransaction is passed. `simulateTransaction` handles it.
      
      let invocation: Invocation | undefined;
      const op = innerTx.operations[0];

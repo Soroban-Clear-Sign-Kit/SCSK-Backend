@@ -74,10 +74,12 @@ export async function simulateTransaction(
        const op = innerTx.operations[0];
        if (op && op.type === 'invokeHostFunction' && op.func) {
          const func = op.func;
-         if (func.switch().name === 'hostFunctionTypeInvokeContract') {
-            const invokeArgs = func.invokeContract();
-            const contractId = Address.fromScAddress(invokeArgs.contractAddress()).toString();
-            const rawFn = invokeArgs.functionName();
+         const funcSwitch = (func && typeof func.switch === 'function') ? func.switch().name : func.type;
+         if (funcSwitch === 'hostFunctionTypeInvokeContract') {
+            const invokeArgs = typeof func.invokeContract === 'function' ? func.invokeContract() : func.invokeContract;
+            const contractAddressObj = typeof invokeArgs.contractAddress === 'function' ? invokeArgs.contractAddress() : invokeArgs.contractAddress;
+            const contractId = Address.fromScAddress(contractAddressObj).toString();
+            const rawFn = typeof invokeArgs.functionName === 'function' ? invokeArgs.functionName() : invokeArgs.functionName;
             const functionName = typeof rawFn === 'string' ? rawFn : rawFn.toString();
             
             const specResult = await loadSpec(contractId, opts);

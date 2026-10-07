@@ -5,30 +5,44 @@ import { decodeScVal } from './scval.js';
 import { WarningCode } from './errors.js';
 
 export async function decodeInvocation(
-  op: xdr.Operation,
+  op: any,
   opts: SpecLoaderOptions
 ): Promise<{ invocation: Invocation; warnings: { code: WarningCode; message: string }[] }> {
   const warnings: { code: WarningCode; message: string }[] = [];
 
-  const body = op.body;
-  if (body.type !== 'invokeHostFunction') {
-    warnings.push({ code: 'CLASSIC_OP_NOT_DECODED', message: 'Operation is not invokeHostFunction' });
-    return { invocation: { contractId: '', functionName: body.type, args: [], specSource: 'none' }, warnings };
+  let opType: string;
+  let func: any; // could be xdr.HostFunction or parsed HostFunctionInvokeContract
+
+  if (op.type && !op.body) {
+    opType = op.type;
+    func = op.func;
+  } else {
+    const body = typeof op.body === 'function' ? op.body() : op.body;
+    opType = (body && typeof body.switch === 'function') ? body.switch().name : body?.type;
+    if (opType === 'invokeHostFunction') {
+      const invokeOp = typeof body.invokeHostFunction === 'function' ? body.invokeHostFunction() : body.value;
+      func = typeof invokeOp.hostFunction === 'function' ? invokeOp.hostFunction() : invokeOp.hostFunction;
+    } else {
+      func = null;
+    }
   }
 
-  const invokeOp = body.value;
-  const func = invokeOp.hostFunction;
-  const funcSwitch = func.type;
+  if (opType !== 'invokeHostFunction') {
+    warnings.push({ code: 'CLASSIC_OP_NOT_DECODED', message: 'Operation is not invokeHostFunction' });
+    return { invocation: { contractId: '', functionName: opType || 'unknown', args: [], specSource: 'none' }, warnings };
+  }
+
+  const funcSwitch = (func && typeof func.switch === 'function') ? func.switch().name : func?.type;
 
   if (funcSwitch === 'hostFunctionTypeInvokeContract') {
-    const invokeArgs = func.value;
-    const contractId = Address.fromScAddress(invokeArgs.contractAddress).toString();
+    const invokeArgs = (typeof func.invokeContract === 'function') ? func.invokeContract() : func.invokeContract;
+    const contractId = Address.fromScAddress((typeof invokeArgs.contractAddress === 'function') ? invokeArgs.contractAddress() : invokeArgs.contractAddress).toString();
     const functionName = typeof invokeArgs.functionName === 'string'
       ? invokeArgs.functionName
       : (typeof invokeArgs.functionName?.toString === 'function'
           ? invokeArgs.functionName.toString()
           : String(invokeArgs.functionName));
-    const args = invokeArgs.args;
+    const args = (typeof invokeArgs.args === 'function') ? invokeArgs.args() : invokeArgs.args;
 
     const specResult = await loadSpec(contractId, opts);
     warnings.push(...specResult.warnings);

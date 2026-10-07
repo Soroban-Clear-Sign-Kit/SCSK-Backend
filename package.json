@@ -17,6 +17,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --dir test/unit",
+    "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage"
   },
   "dependencies": {

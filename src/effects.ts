@@ -13,22 +13,29 @@ export function extractTokenEffects(
   const deltas: Record<string, Record<string, bigint>> = {}; // contractId -> account -> delta
 
   for (const diagnosticEvent of events) {
-    if (!diagnosticEvent.inSuccessfulContractCall()) continue;
-    const event = diagnosticEvent.event();
-    if (event.type().name !== 'contractEventTypeContract' && event.type().value !== 0) continue; // contract = 0
+    const isSuccess = typeof diagnosticEvent.inSuccessfulContractCall === 'function' ? diagnosticEvent.inSuccessfulContractCall() : diagnosticEvent.inSuccessfulContractCall;
+    if (!isSuccess) continue;
+    const event = typeof diagnosticEvent.event === 'function' ? diagnosticEvent.event() : diagnosticEvent.event;
+    
+    const eventType = typeof event.type === 'function' ? event.type() : event.type;
+    if (eventType.name !== 'contractEventTypeContract' && eventType.value !== 0) continue; // contract = 0
 
-    const contractId = event.contractId() ? Address.fromScAddress(event.contractId()!).toString() : null;
+    const eventContractId = typeof event.contractId === 'function' ? event.contractId() : event.contractId;
+    const contractId = eventContractId ? Address.fromScAddress(eventContractId).toString() : null;
     if (!contractId) continue;
 
-    const body = event.body().value() as any;
-    if (!body || !body.topics || !body.data) continue;
-
-    const topics = body.topics() as xdr.ScVal[];
+    const eventBody = typeof event.body === 'function' ? event.body() : event.body;
+    const bodyValue = typeof eventBody.value === 'function' ? eventBody.value() : (eventBody.v0 || eventBody.value);
+    
+    if (!bodyValue || !bodyValue.topics || !bodyValue.data) continue;
+    const topics = (typeof bodyValue.topics === 'function' ? bodyValue.topics() : bodyValue.topics) as xdr.ScVal[];
     if (topics.length < 1) continue;
 
     const topic0 = topics[0];
-    if (topic0.switch().name !== 'scvSymbol') continue;
-    const action = topic0.sym().toString();
+    const topic0Type = typeof topic0.switch === 'function' ? topic0.switch().name : (topic0 as any).type;
+    if (topic0Type !== 'scvSymbol') continue;
+    const rawSym = typeof topic0.sym === 'function' ? topic0.sym() : (topic0 as any).sym;
+    const action = rawSym ? rawSym.toString() : '';
 
     let from: string | null = null;
     let to: string | null = null;

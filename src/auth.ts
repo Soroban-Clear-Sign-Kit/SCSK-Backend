@@ -12,7 +12,7 @@ export interface AuthDecodeOptions extends SpecLoaderOptions {
 }
 
 export async function decodeAuthEntries(
-  entries: xdr.SorobanAuthorizationEntry[],
+  entries: any[], // xdr.SorobanAuthorizationEntry[] or parsed
   latestLedger: number,
   opts: AuthDecodeOptions
 ): Promise<{ auth: AuthEntry[]; warnings: { code: WarningCode; message: string }[] }> {
@@ -20,17 +20,22 @@ export async function decodeAuthEntries(
   const auth: AuthEntry[] = [];
 
   for (const entry of entries) {
-    const creds = entry.credentials();
+    const creds = typeof entry.credentials === 'function' ? entry.credentials() : entry.credentials;
     let credentials: AuthEntry['credentials'];
 
-    if (creds.switch().name === 'sorobanCredentialsSourceAccount') {
+    const credsSwitch = typeof creds.switch === 'function' ? creds.switch().name : creds.type;
+
+    if (credsSwitch === 'sorobanCredentialsSourceAccount') {
       credentials = { type: 'source-account' };
-    } else if (creds.switch().name === 'sorobanCredentialsAddress') {
-      const addrCreds = creds.address();
-      const address = Address.fromScAddress(addrCreds.address()).toString();
-      const nonce = addrCreds.nonce().toString();
-      const signatureExpirationLedger = addrCreds.signatureExpirationLedger();
-      const signed = addrCreds.signature().switch().name !== 'scvVoid';
+    } else if (credsSwitch === 'sorobanCredentialsAddress') {
+      const addrCreds = typeof creds.address === 'function' ? creds.address() : creds.address;
+      const addrObj = typeof addrCreds.address === 'function' ? addrCreds.address() : addrCreds.address;
+      const address = Address.fromScAddress(addrObj).toString();
+      const nonceObj = typeof addrCreds.nonce === 'function' ? addrCreds.nonce() : addrCreds.nonce;
+      const nonce = nonceObj.toString();
+      const signatureExpirationLedger = typeof addrCreds.signatureExpirationLedger === 'function' ? addrCreds.signatureExpirationLedger() : addrCreds.signatureExpirationLedger;
+      const signature = typeof addrCreds.signature === 'function' ? addrCreds.signature() : addrCreds.signature;
+      const signed = (typeof signature.switch === 'function' ? signature.switch().name : signature.type) !== 'scvVoid';
       
       credentials = {
         type: 'address',
@@ -56,7 +61,7 @@ export async function decodeAuthEntries(
     let nodeCount = 0;
 
     async function walkInvocation(
-      inv: xdr.SorobanAuthorizedInvocation,
+      inv: any,
       depth: number
     ): Promise<AuthNode> {
       nodeCount++;
@@ -69,8 +74,8 @@ export async function decodeAuthEntries(
         return { kind: 'contract-fn', children: [], depth };
       }
 
-      const func = inv.function();
-      const funcType = func.switch().name;
+      const func = typeof inv.function === 'function' ? inv.function() : inv.function;
+      const funcType = typeof func.switch === 'function' ? func.switch().name : func.type;
 
       let kind: AuthNode['kind'] = 'contract-fn';
       let contractId: string | undefined;
@@ -79,16 +84,17 @@ export async function decodeAuthEntries(
       let details: Record<string, string> | undefined;
 
       if (funcType === 'sorobanAuthorizedFunctionTypeContractFn') {
-        const contractFn = func.contractFn();
-        contractId = Address.fromScAddress(contractFn.contractAddress()).toString();
-        const rawFnName = contractFn.functionName();
+        const contractFn = typeof func.contractFn === 'function' ? func.contractFn() : func.contractFn;
+        const addrObj = typeof contractFn.contractAddress === 'function' ? contractFn.contractAddress() : contractFn.contractAddress;
+        contractId = Address.fromScAddress(addrObj).toString();
+        const rawFnName = typeof contractFn.functionName === 'function' ? contractFn.functionName() : contractFn.functionName;
         functionName = typeof rawFnName === 'string' ? rawFnName : rawFnName.toString();
         
         if (opts.topLevelContractId && contractId !== opts.topLevelContractId) {
           warnings.push({ code: 'AUTH_EXTRA_CONTRACT', message: `Auth targets contract ${contractId} which is not the top-level contract` });
         }
 
-        const scVals = contractFn.args();
+        const scVals = typeof contractFn.args === 'function' ? contractFn.args() : contractFn.args;
 
         const specResult = await loadSpec(contractId, opts);
         warnings.push(...specResult.warnings);
@@ -131,9 +137,9 @@ export async function decodeAuthEntries(
         details = {};
       }
 
-      const subInvs = inv.subInvocations();
+      const subInvs = typeof inv.subInvocations === 'function' ? inv.subInvocations() : inv.subInvocations;
       const children: AuthNode[] = [];
-      for (const sub of subInvs) {
+      for (const sub of (subInvs || [])) {
         children.push(await walkInvocation(sub, depth + 1));
       }
 
@@ -148,7 +154,8 @@ export async function decodeAuthEntries(
       };
     }
 
-    const root = await walkInvocation(entry.rootInvocation(), 1);
+    const rootInvoc = typeof entry.rootInvocation === 'function' ? entry.rootInvocation() : entry.rootInvocation;
+    const root = await walkInvocation(rootInvoc, 1);
     
     auth.push({ credentials, root });
   }
