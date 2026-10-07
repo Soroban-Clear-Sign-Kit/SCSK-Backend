@@ -36,5 +36,9 @@
 - Simulated transactions with RPC timeouts, extracted fee, return values, and auth.
 - Parsed SEP-41 token movements (`transfer`, `mint`, `burn`, `clawback`) from diagnostic events and aggregated balance deltas.
 - Resolved decimals and symbols from cached read-only simulations and safely formatted token amounts using precise string math.
-- Added formatting unit tests.
-- Pushed Phase 4 to github.
+## Phase 5
+- Implemented `risk.ts` to compute a single risk level from the full list of warnings, adhering to the fixed severity table mapping.
+- Implemented `intent.ts` for intent verification, which compares normalized values (bigints, numbers, strings, addresses).
+- Handled `INTENT_MISMATCH`, `INTENT_SPEND_EXCEEDED`, `INTENT_UNEXPECTED_AUTH`, and `INTENT_UNVERIFIABLE` checks.
+- Created table-driven unit tests for risk calculation and intent verification, covering swapped recipients and amounts off by one.
+- Pushed Phase 5 to github.

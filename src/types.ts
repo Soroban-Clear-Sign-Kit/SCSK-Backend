@@ -51,3 +51,11 @@ export interface BalanceDelta {
   decimals?: number;
   formatted?: string;
 }
+
+export interface Intent {
+  contractId: string;
+  functionName: string;
+  args?: Record<string, unknown>;
+  maxSpend?: { token: string; account: string; amount: string };
+  allowedContracts?: string[];
+}
