@@ -7,3 +7,4 @@ export * from './scval.js';
 export * from './invocation.js';
 export * from './events.js';
 export * from './state.js';
+export * from './auth.js';
