@@ -42,3 +42,10 @@
 - Handled `INTENT_MISMATCH`, `INTENT_SPEND_EXCEEDED`, `INTENT_UNEXPECTED_AUTH`, and `INTENT_UNVERIFIABLE` checks.
 - Created table-driven unit tests for risk calculation and intent verification, covering swapped recipients and amounts off by one.
 - Pushed Phase 5 to github.
+
+## Phase 6
+- Implemented `sanitize.ts` to replace C0/C1 control characters with `?` and strip bidi-override/zero-width characters.
+- Implemented `summary.ts` to generate plain-English summary strings from typed models.
+- Implemented `preview.ts` which orchestrates `buildPreview()`, successfully composing phases 1 through 5, generating a `ClearSignPreview` object, and sanitizing the output structure without throwing exceptions.
+- Added sanitization unit tests covering all required attack vectors.
+- Pushed Phase 6 to github.
