@@ -1,0 +1,103 @@
+{
+  "xdr": "AAAAAgAAAADzHKwn+eanBg/L/wJSP1AduW7fgO3hUFMrt3PxeoHpHwAAJxAATWmrAAAAAwAAAAEAAAAAAAAAAAAAAABqxnMxAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABRPCmKxRznYuEPl9OWsLCaofrlyKjCCi6ENX3qBQ5DwAAAAALc2ltcGxlX2NhbGwAAAAAAwAAAAQAAAB7AAAADgAAAAVoZWxsbwAAAAAAABIAAAAAAAAAAPMcrCf55qcGD8v/AlI/UB25bt+A7eFQUyu3c/F6gekfAAAAAAAAAAAAAAAA",
+  "sim": {
+    "_parsed": true,
+    "latestLedger": 5073325,
+    "events": [
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": null,
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_call"
+                },
+                {
+                  "bytes": "44f0a62b14739d8b843e5f4e5ac2c26a87eb9722a30828ba10d5f7a814390f00"
+                },
+                {
+                  "symbol": "simple_call"
+                }
+              ],
+              "data": {
+                "vec": [
+                  {
+                    "i32": 123
+                  },
+                  {
+                    "string": "hello"
+                  },
+                  {
+                    "address": "GDZRZLBH7HTKOBQPZP7QEUR7KAO3S3W7QDW6CUCTFO3XH4L2QHUR72YH"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": "CBCPBJRLCRZZ3C4EHZPU4WWCYJVIP24XEKRQQKF2CDK7PKAUHEHQBXWL",
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_return"
+                },
+                {
+                  "symbol": "simple_call"
+                }
+              ],
+              "data": {
+                "bool": true
+              }
+            }
+          }
+        }
+      }
+    ],
+    "transactionData": {
+      "_data": {
+        "ext": "v0",
+        "resources": {
+          "footprint": {
+            "read_only": [
+              {
+                "contract_data": {
+                  "contract": "CBCPBJRLCRZZ3C4EHZPU4WWCYJVIP24XEKRQQKF2CDK7PKAUHEHQBXWL",
+                  "key": "ledger_key_contract_instance",
+                  "durability": "persistent"
+                }
+              },
+              {
+                "contract_code": {
+                  "hash": "df160cba7e557ab858d52c0f1c12155f0e78fb3270c464042e5accb46a1f49ce"
+                }
+              }
+            ],
+            "read_write": []
+          },
+          "instructions": 373972,
+          "disk_read_bytes": 0,
+          "write_bytes": 0
+        },
+        "resource_fee": "12922"
+      }
+    },
+    "minResourceFee": "12922",
+    "result": {
+      "auth": [],
+      "retval": {
+        "bool": true
+      }
+    }
+  }
+}
