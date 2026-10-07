@@ -31,8 +31,10 @@
 - Committed and pushed Phase 3 to github.
 
 ## Phase 4
-- Built `ClearSignProvider` React context to supply RPC and Network configs to child components.
-- Developed the `useClearSign` hook for decoding envelopes and their internal contract invocations synchronously.
-- Developed the `useSimulateTransaction` hook which queries the RPC server, executes the payload, and dynamically decodes resulting diagnostic events and ledger state mutations seamlessly into human-readable objects.
-- Integrated Vitest with `jsdom` and React Testing Library to validate the components.
+- Implemented `simulate.ts`, `effects.ts`, and `tokens.ts` for simulation and effects, fully replacing the invalid `Phase 4` that was out of sync with the PDF.
+- Added `BalanceDelta` interface to `types.ts`.
+- Simulated transactions with RPC timeouts, extracted fee, return values, and auth.
+- Parsed SEP-41 token movements (`transfer`, `mint`, `burn`, `clawback`) from diagnostic events and aggregated balance deltas.
+- Resolved decimals and symbols from cached read-only simulations and safely formatted token amounts using precise string math.
+- Added formatting unit tests.
 - Pushed Phase 4 to github.
