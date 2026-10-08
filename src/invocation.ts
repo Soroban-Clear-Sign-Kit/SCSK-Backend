@@ -175,10 +175,12 @@ export async function decodeInvocation(
     ];
 
     if (funcSwitch === 'hostFunctionTypeCreateContractV2') {
-      baseArgs.push({
-        name: 'constructorArgs',
-        typeName: 'vec',
-        value: { kind: 'vec', values: constructorArgsDecoded.map(a => a.value) } as any
+      constructorArgsDecoded.forEach((arg, i) => {
+        baseArgs.push({
+          name: `constructorArg[${i}]`,
+          typeName: arg.typeName,
+          value: arg.value
+        });
       });
     }
 

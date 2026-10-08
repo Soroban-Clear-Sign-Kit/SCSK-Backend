@@ -179,7 +179,7 @@ describe('decodeInvocation', () => {
         expect(res.invocation.contractId).toBe('Deploy');
         expect(res.invocation.args[0].value.value).toBe(keypair.publicKey());
         expect(res.invocation.args[2].value.value).toBe('Stellar Asset');
-        expect(res.invocation.args[3].name).toBe('constructorArgs');
+        expect(res.invocation.args[3].name).toBe('constructorArg[0]');
     });
 
     it('decodes upload wasm', async () => {
@@ -280,7 +280,7 @@ describe('decodeInvocation', () => {
         expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
         expect(res.invocation.contractId).toBe('Deploy');
         expect(res.invocation.args[2].value.value).toHaveLength(64); // 32 bytes hex
-        expect(res.invocation.args[3].name).toBe('constructorArgs');
+        expect(res.invocation.args[3].name).toBe('constructorArg[0]');
     });
 
     it('handles sac-builtin with unknown function name', async () => {
