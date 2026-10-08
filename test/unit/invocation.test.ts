@@ -117,6 +117,88 @@ describe('decodeInvocation', () => {
         expect(res.invocation.args.length).toBe(1);
     });
 
+    it('decodes sac-builtin with missing function definition', async () => {
+        const keypair = Keypair.random();
+        const op = {
+            body: () => ({
+                switch: () => ({ name: 'invokeHostFunction' }),
+                invokeHostFunction: () => ({
+                    hostFunction: () => ({
+                        switch: () => ({ name: 'hostFunctionTypeInvokeContract' }),
+                        invokeContract: () => ({
+                            contractAddress: () => Address.fromString(keypair.publicKey()).toScAddress(),
+                            functionName: 'unknown_sac_func',
+                            args: () => [1]
+                        })
+                    })
+                })
+            })
+        };
+
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'sac-builtin', warnings: [] });
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.invocation.args.length).toBe(1);
+        expect(res.invocation.args[0].name).toBeNull();
+    });
+
+    it('decodes with no spec available', async () => {
+        const keypair = Keypair.random();
+        const op = {
+            body: () => ({
+                switch: () => ({ name: 'invokeHostFunction' }),
+                invokeHostFunction: () => ({
+                    hostFunction: () => ({
+                        switch: () => ({ name: 'hostFunctionTypeInvokeContract' }),
+                        invokeContract: () => ({
+                            contractAddress: () => Address.fromString(keypair.publicKey()).toScAddress(),
+                            // Test functionName with toString()
+                            functionName: { toString: () => 'my_func' },
+                            args: () => [1]
+                        })
+                    })
+                })
+            })
+        };
+
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'none', warnings: [] });
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.invocation.functionName).toBe('my_func');
+        expect(res.invocation.specSource).toBe('none');
+        expect(res.invocation.args.length).toBe(1);
+        expect(res.invocation.args[0].name).toBeNull();
+    });
+
+    it('decodes with function name missing toString', async () => {
+        const keypair = Keypair.random();
+        
+        const op = {
+            body: () => ({
+                switch: () => ({ name: 'invokeHostFunction' }),
+                invokeHostFunction: () => ({
+                    hostFunction: () => ({
+                        switch: () => ({ name: 'hostFunctionTypeInvokeContract' }),
+                        invokeContract: () => ({
+                            contractAddress: () => Address.fromString(keypair.publicKey()).toScAddress(),
+                            // Test functionName with null, which lacks toString but String(null) === 'null'
+                            functionName: null,
+                            args: () => [1]
+                        })
+                    })
+                })
+            })
+        };
+
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'none', warnings: [] });
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.invocation.functionName).toBe('null');
+    });
+
     it('decodes create contract v1 with stellar asset', async () => {
         const keypair = Keypair.random();
         const op = {
