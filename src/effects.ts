@@ -20,8 +20,27 @@ export function extractTokenEffects(
     const eventType: any = typeof event.type === 'function' ? event.type() : event.type;
     if (eventType.name !== 'contractEventTypeContract' && eventType.name !== 'contract' && eventType.value !== 1) continue;
 
-    const eventContractId = typeof event.contractId === 'function' ? event.contractId() : event.contractId;
-    const contractId = eventContractId ? StrKey.encodeContract(eventContractId) : null;
+    const eventContractIdRaw = typeof event.contractId === 'function' ? event.contractId() : event.contractId;
+    let eventContractId: Buffer | Uint8Array | null = null;
+    if (eventContractIdRaw) {
+      if (Buffer.isBuffer(eventContractIdRaw) || eventContractIdRaw instanceof Uint8Array) {
+        eventContractId = eventContractIdRaw;
+      } else if (eventContractIdRaw.value && (Buffer.isBuffer(eventContractIdRaw.value) || eventContractIdRaw.value instanceof Uint8Array)) {
+        eventContractId = eventContractIdRaw.value;
+      } else if (typeof eventContractIdRaw.toString === 'function') {
+        const hex = eventContractIdRaw.toString('hex');
+        if (hex && hex.length === 64) eventContractId = Buffer.from(hex, 'hex');
+      }
+    }
+    
+    let contractId: string | null = null;
+    if (eventContractId) {
+      try {
+        contractId = StrKey.encodeContract(Buffer.from(eventContractId));
+      } catch (err) {
+        console.error('encodeContract error. eventContractId:', eventContractId, err);
+      }
+    }
     if (!contractId) continue;
 
     const eventBody = typeof event.body === 'function' ? event.body() : event.body;

@@ -1,4 +1,5 @@
 import { ClearSignPreview, Intent, AuthEntry, Invocation, BalanceDelta } from './types.js';
+import { rpc } from '@stellar/stellar-sdk';
 import { SimulationResult } from './simulate.js';
 import { WarningCode, WARNING_SEVERITY } from './errors.js';
 import { parseEnvelope } from './envelope.js';
@@ -40,6 +41,29 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
   };
 
   try {
+     const server = new rpc.Server(input.rpcUrl);
+     let rpcNetwork: rpc.Api.GetNetworkResponse;
+     try {
+       rpcNetwork = await server.getNetwork();
+       if (rpcNetwork.passphrase && rpcNetwork.passphrase !== input.networkPassphrase) {
+          addWarning([{ code: 'NETWORK_MISMATCH', message: 'RPC network does not match configured network' }]);
+          return {
+             version: 1,
+             risk: 'blocked',
+             warnings: warnings.map(w => ({ ...w, severity: 'blocked' })),
+             network: { passphrase: input.networkPassphrase, verified: false },
+             envelope: { source: '', sequence: '', fee: '', operations: [] },
+             auth: [],
+             simulation: { status: 'skipped' },
+             effects: [],
+             summary: [],
+             raw: { xdr: input.xdr }
+          };
+       }
+     } catch(e) {
+       // ignore if getNetwork fails, rely on simulation
+     }
+
      const envResult = parseEnvelope(input.xdr, input.networkPassphrase);
      if (!envResult.success) {
         addWarning([envResult.error]);
@@ -87,24 +111,38 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         addWarning(invResult.warnings);
      }
 
-     let simulation: SimulationResult;
+     let simulation: SimulationResult = { status: 'skipped', warnings: [] };
      let latestLedger = 0;
      let effects: BalanceDelta[] = [];
      let auth: AuthEntry[] = [];
      
-     const simOpts: any = {
-        rpcUrl: input.rpcUrl,
-        networkPassphrase: input.networkPassphrase,
-        feeWarningMultiplier: input.options?.feeWarningMultiplier,
-        specs: input.specs
-     };
-     Object.keys(simOpts).forEach(k => simOpts[k] === undefined && delete simOpts[k]);
-     
-     simulation = await simulateTransaction(tx, simOpts);
-     addWarning(simulation.warnings);
+     const hasInvoke = innerTx.operations.some(o => o.type === 'invokeHostFunction');
+
+     if (hasInvoke) {
+         const simOpts: any = {
+            rpcUrl: input.rpcUrl,
+            networkPassphrase: input.networkPassphrase,
+            feeWarningMultiplier: input.options?.feeWarningMultiplier,
+            specs: input.specs
+         };
+         Object.keys(simOpts).forEach(k => simOpts[k] === undefined && delete simOpts[k]);
+         
+         simulation = await simulateTransaction(tx, simOpts);
+         addWarning(simulation.warnings);
+     }
      
      if (simulation.latestLedger) {
         latestLedger = simulation.latestLedger;
+     }
+     
+     if (!latestLedger) {
+        try {
+            const server = new rpc.Server(input.rpcUrl);
+            const info = await server.getLatestLedger();
+            latestLedger = info.sequence;
+        } catch (e) {
+            // fallback
+        }
      }
 
      if (simulation.status === 'success') {
@@ -117,7 +155,14 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      }
 
      // Auth
-     const authXdr = simulation.auth || [];
+     let authXdr = simulation.auth || [];
+     if (authXdr.length === 0) {
+        for (const op of innerTx.operations) {
+           if (op.type === 'invokeHostFunction' && (op as any).auth) {
+               authXdr = authXdr.concat((op as any).auth);
+           }
+        }
+     }
      const authOpts: any = {
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
@@ -173,6 +218,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      return sanitizeRecursive(preview) as ClearSignPreview;
 
   } catch (err: any) {
+     console.error('INTERNAL_ERROR Stack:', err.stack);
      const w = { code: 'INTERNAL_ERROR' as WarningCode, message: err.message || 'Unknown error', severity: 'blocked' as const };
      return {
         version: 1,

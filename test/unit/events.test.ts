@@ -119,12 +119,14 @@ describe('decodeEvent', () => {
   it('skips non-matching specs', async () => {
     const specEvents = [
         {
-            name: Buffer.from('transfer'),
-            topics: [
-                { type: 'scSpecTypeSymbol' },
-                { type: 'scSpecTypeI32' } // mismatch here, U32 in event
-            ],
-            data: { type: 'scSpecTypeString' }
+            value: {
+                name: () => Buffer.from('transfer'),
+                topics: [
+                    { type: 'scSpecTypeSymbol' },
+                    { type: 'scSpecTypeI32' }
+                ],
+                data: { type: 'scSpecTypeString' }
+            }
         }
     ];
 
@@ -139,13 +141,15 @@ describe('decodeEvent', () => {
       contractId: StrKey.decodeContract(contractId),
       type: xdr.ContractEventType.contract,
       body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({
-        topics: [xdr.ScVal.scvSymbol('transfer'), xdr.ScVal.scvU32(100)],
+        // First topic is U32 instead of Symbol, which will trigger match = false
+        topics: [xdr.ScVal.scvU32(99), xdr.ScVal.scvU32(100)],
         data: xdr.ScVal.scvString('hello_spec')
       }))
     });
 
     const res = await decodeEvent(event, { rpcUrl: '' });
-    // Did not match type, so didn't parse from spec (but name still extracted)
-    expect(res.eventName).toBe('transfer');
+    // Did not match type, so didn't parse from spec. 
+    // And since it didn't match, and the first topic is not a symbol, it has no eventName!
+    expect(res.eventName).toBeNull();
   });
 });

@@ -44,7 +44,7 @@ export async function simulateTransaction(
 
   if (rpc.Api.isSimulationError(response)) {
     warnings.push({ code: 'SIMULATION_FAILED', message: response.error || 'Simulation failed' });
-    return { status: 'failed', error: response.error, warnings };
+    return { status: 'failed', error: response.error, warnings, latestLedger: (response as any).latestLedger || 0 };
   }
 
   if (rpc.Api.isSimulationRestore(response)) {

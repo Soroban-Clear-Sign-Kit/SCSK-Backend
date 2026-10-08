@@ -1,0 +1,83 @@
+{
+  "xdr": "AAAAAgAAAADkiCqJKF1eXt6Ug4Q+fYUVV4ccUdbV7BLYkoV8MT5LSQAAJxAATaEfAAAAAwAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABAiMW1feUd3ZLcRjgE9iehksTK/dzffBv3Dfe+pgGyKUAAAAIdHJhbnNmZXIAAAADAAAAEgAAAAAAAAAAihxqCZb3AvpD5yCj4UIcRVUQ1mgo4QRdFEE/ULFp3PUAAAASAAAAAAAAAADkiCqJKF1eXt6Ug4Q+fYUVV4ccUdbV7BLYkoV8MT5LSQAAAAoAAAAAAAAAAAAAAAAAAABkAAAAAQAAAAEAAAAAAAAAAIocagmW9wL6Q+cgo+FCHEVVENZoKOEEXRRBP1Cxadz1AAAAAAAAAAAAAAAKAAAAAQAAAAAAAAABAiMW1feUd3ZLcRjgE9iehksTK/dzffBv3Dfe+pgGyKUAAAAIdHJhbnNmZXIAAAADAAAAEgAAAAAAAAAAihxqCZb3AvpD5yCj4UIcRVUQ1mgo4QRdFEE/ULFp3PUAAAASAAAAAAAAAADkiCqJKF1eXt6Ug4Q+fYUVV4ccUdbV7BLYkoV8MT5LSQAAAAoAAAAAAAAAAAAAAAAAAABkAAAAAAAAAAAAAAAA",
+  "sim": {
+    "_parsed": true,
+    "latestLedger": 5088282,
+    "events": [
+      {
+        "in_successful_contract_call": false,
+        "event": {
+          "ext": "v0",
+          "contract_id": null,
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_call"
+                },
+                {
+                  "bytes": "022316d5f79477764b7118e013d89e864b132bf7737df06fdc37defa9806c8a5"
+                },
+                {
+                  "symbol": "transfer"
+                }
+              ],
+              "data": {
+                "vec": [
+                  {
+                    "address": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                  },
+                  {
+                    "address": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2"
+                  },
+                  {
+                    "i128": "100"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "in_successful_contract_call": false,
+        "event": {
+          "ext": "v0",
+          "contract_id": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF",
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "error"
+                },
+                {
+                  "error": {
+                    "auth": "invalid_action"
+                  }
+                }
+              ],
+              "data": {
+                "vec": [
+                  {
+                    "string": "failed account authentication with error"
+                  },
+                  {
+                    "address": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                  },
+                  {
+                    "error": {
+                      "value": "unexpected_type"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "error": "HostError: Error(Auth, InvalidAction)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, topics:[error, Error(Auth, InvalidAction)], data:[\"failed account authentication with error\", GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B, Error(Value, UnexpectedType)]\n   1: [Diagnostic Event] topics:[fn_call, CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, transfer], data:[GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B, GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2, 100]\n"
+  }
+}

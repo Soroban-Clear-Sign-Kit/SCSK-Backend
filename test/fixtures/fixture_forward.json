@@ -1,0 +1,306 @@
+{
+  "xdr": "AAAAAgAAAACKHGoJlvcC+kPnIKPhQhxFVRDWaCjhBF0UQT9QsWnc9QAAJxAATaEeAAAADQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAGAAAAAAAAAABfVfE4yRbDV10s0EoEBJ7moW2G/Og9BP2lk5Aq/VZ6gcAAAAHZm9yd2FyZAAAAAAEAAAAEgAAAAAAAAAAihxqCZb3AvpD5yCj4UIcRVUQ1mgo4QRdFEE/ULFp3PUAAAASAAAAAQIjFtX3lHd2S3EY4BPYnoZLEyv3c33wb9w33vqYBsilAAAAEgAAAAAAAAAA5IgqiShdXl7elIOEPn2FFVeHHFHW1ewS2JKFfDE+S0kAAAAKAAAAAAAAAAAAAAAAAAAAZAAAAAAAAAAAAAAAAA==",
+  "sim": {
+    "_parsed": true,
+    "latestLedger": 5088282,
+    "events": [
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": null,
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_call"
+                },
+                {
+                  "bytes": "7d57c4e3245b0d5d74b3412810127b9a85b61bf3a0f413f6964e40abf559ea07"
+                },
+                {
+                  "symbol": "forward"
+                }
+              ],
+              "data": {
+                "vec": [
+                  {
+                    "address": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                  },
+                  {
+                    "address": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF"
+                  },
+                  {
+                    "address": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2"
+                  },
+                  {
+                    "i128": "100"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": "CB6VPRHDERNQ2XLUWNASQEASPONILNQ36OQPIE7WSZHEBK7VLHVAPD6M",
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_call"
+                },
+                {
+                  "bytes": "022316d5f79477764b7118e013d89e864b132bf7737df06fdc37defa9806c8a5"
+                },
+                {
+                  "symbol": "transfer"
+                }
+              ],
+              "data": {
+                "vec": [
+                  {
+                    "address": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                  },
+                  {
+                    "address": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2"
+                  },
+                  {
+                    "i128": "100"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF",
+          "type": "contract",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "mint"
+                },
+                {
+                  "address": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2"
+                },
+                {
+                  "string": "TST14077:GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                }
+              ],
+              "data": {
+                "i128": "100"
+              }
+            }
+          }
+        }
+      },
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF",
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_return"
+                },
+                {
+                  "symbol": "transfer"
+                }
+              ],
+              "data": "void"
+            }
+          }
+        }
+      },
+      {
+        "in_successful_contract_call": true,
+        "event": {
+          "ext": "v0",
+          "contract_id": "CB6VPRHDERNQ2XLUWNASQEASPONILNQ36OQPIE7WSZHEBK7VLHVAPD6M",
+          "type": "diagnostic",
+          "body": {
+            "v0": {
+              "topics": [
+                {
+                  "symbol": "fn_return"
+                },
+                {
+                  "symbol": "forward"
+                }
+              ],
+              "data": "void"
+            }
+          }
+        }
+      }
+    ],
+    "transactionData": {
+      "_data": {
+        "ext": "v0",
+        "resources": {
+          "footprint": {
+            "read_only": [
+              {
+                "contract_data": {
+                  "contract": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF",
+                  "key": "ledger_key_contract_instance",
+                  "durability": "persistent"
+                }
+              },
+              {
+                "contract_data": {
+                  "contract": "CB6VPRHDERNQ2XLUWNASQEASPONILNQ36OQPIE7WSZHEBK7VLHVAPD6M",
+                  "key": "ledger_key_contract_instance",
+                  "durability": "persistent"
+                }
+              },
+              {
+                "contract_code": {
+                  "hash": "1a216109f2089d62c6f2699e88974f1d8bb99b530144a610f4585c25eae0034c"
+                }
+              }
+            ],
+            "read_write": [
+              {
+                "trustline": {
+                  "account_id": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2",
+                  "asset": {
+                    "credit_alphanum12": {
+                      "asset_code": "TST14077",
+                      "issuer": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "instructions": 558456,
+          "disk_read_bytes": 124,
+          "write_bytes": 124
+        },
+        "resource_fee": "20996"
+      }
+    },
+    "minResourceFee": "20996",
+    "result": {
+      "auth": [
+        {
+          "credentials": "source_account",
+          "root_invocation": {
+            "function": {
+              "contract_fn": {
+                "contract_address": "CB6VPRHDERNQ2XLUWNASQEASPONILNQ36OQPIE7WSZHEBK7VLHVAPD6M",
+                "function_name": "forward",
+                "args": [
+                  {
+                    "address": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                  },
+                  {
+                    "address": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF"
+                  },
+                  {
+                    "address": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2"
+                  },
+                  {
+                    "i128": "100"
+                  }
+                ]
+              }
+            },
+            "sub_invocations": [
+              {
+                "function": {
+                  "contract_fn": {
+                    "contract_address": "CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF",
+                    "function_name": "transfer",
+                    "args": [
+                      {
+                        "address": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                      },
+                      {
+                        "address": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2"
+                      },
+                      {
+                        "i128": "100"
+                      }
+                    ]
+                  }
+                },
+                "sub_invocations": []
+              }
+            ]
+          }
+        }
+      ],
+      "retval": "void"
+    },
+    "stateChanges": [
+      {
+        "type": "updated",
+        "key": {
+          "trustline": {
+            "account_id": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2",
+            "asset": {
+              "credit_alphanum12": {
+                "asset_code": "TST14077",
+                "issuer": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+              }
+            }
+          }
+        },
+        "before": {
+          "last_modified_ledger_seq": 5088095,
+          "data": {
+            "trustline": {
+              "account_id": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2",
+              "asset": {
+                "credit_alphanum12": {
+                  "asset_code": "TST14077",
+                  "issuer": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                }
+              },
+              "balance": "1000000000",
+              "limit": "9223372036854775807",
+              "flags": 1,
+              "ext": "v0"
+            }
+          },
+          "ext": "v0"
+        },
+        "after": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "trustline": {
+              "account_id": "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2",
+              "asset": {
+                "credit_alphanum12": {
+                  "asset_code": "TST14077",
+                  "issuer": "GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B"
+                }
+              },
+              "balance": "1000000100",
+              "limit": "9223372036854775807",
+              "flags": 1,
+              "ext": "v0"
+            }
+          },
+          "ext": "v0"
+        }
+      }
+    ]
+  }
+}
