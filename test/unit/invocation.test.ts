@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { decodeInvocation } from '../../src/invocation';
-import * as spec from '../../src/spec';
-import * as scval from '../../src/scval';
+import { decodeInvocation } from '../../src/invocation.js';
+import * as spec from '../../src/spec.js';
+import * as scval from '../../src/scval.js';
 import { xdr, Address, Keypair } from '@stellar/stellar-sdk';
 
-vi.mock('../../src/spec');
-vi.mock('../../src/scval');
+vi.mock('../../src/spec.js', async () => {
+    const actual: any = await vi.importActual('../../src/spec.js');
+    return {
+        ...actual,
+        loadSpec: vi.fn(),
+    };
+});
+vi.mock('../../src/scval.js');
 
 describe('decodeInvocation', () => {
     beforeEach(() => {
@@ -111,7 +117,7 @@ describe('decodeInvocation', () => {
         expect(res.invocation.args.length).toBe(1);
     });
 
-    it('decodes create contract v1', async () => {
+    it('decodes create contract v1 with stellar asset', async () => {
         const keypair = Keypair.random();
         const op = {
             body: () => ({
@@ -125,8 +131,7 @@ describe('decodeInvocation', () => {
                                 value: { address: Address.fromString(keypair.publicKey()).toScAddress(), salt: Buffer.alloc(32) }
                             },
                             executable: {
-                                type: 'contractExecutableWasm',
-                                value: Buffer.alloc(32)
+                                type: 'contractExecutableStellarAsset'
                             }
                         }
                     })
@@ -138,6 +143,7 @@ describe('decodeInvocation', () => {
         expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
         expect(res.invocation.contractId).toBe('Deploy');
         expect(res.invocation.args[0].value.value).toBe(keypair.publicKey());
+        expect(res.invocation.args[2].value.value).toBe('Stellar Asset');
     });
 
     it('decodes create contract v2', async () => {

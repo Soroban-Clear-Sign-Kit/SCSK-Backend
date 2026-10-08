@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { simulateTransaction } from '../../src/simulate';
-import { TransactionBuilder, Networks, rpc, Account, Keypair, xdr, Operation, Asset } from '@stellar/stellar-sdk';
+import { TransactionBuilder, Networks, rpc, Account, Keypair, xdr, Operation, Asset, FeeBumpTransaction, Address } from '@stellar/stellar-sdk';
+import * as spec from '../../src/spec';
+
+vi.mock('../../src/spec', async (importOriginal) => {
+    const actual: any = await importOriginal();
+    return {
+        ...actual,
+        loadSpec: vi.fn()
+    };
+});
 
 vi.mock('@stellar/stellar-sdk', async (importOriginal) => {
     const actual: any = await importOriginal();
@@ -43,7 +52,6 @@ describe('simulateTransaction', () => {
             .build();
         (tx as any)._mockSim = { error: 'Failed', _isSimulationError: true };
         
-        // Mocking the rpc.Api functions because they rely on object shape
         const isSimulationErrorMock = vi.spyOn(rpc.Api, 'isSimulationError').mockReturnValue(true);
         
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
@@ -85,6 +93,78 @@ describe('simulateTransaction', () => {
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET, feeWarningMultiplier: 2 });
         expect(sim.status).toBe('success');
         expect(sim.warnings.some(w => w.code === 'FEE_UNUSUALLY_HIGH')).toBe(true);
+        
+        isSimulationErrorMock.mockRestore();
+        isSimulationRestoreMock.mockRestore();
+        isSimulationSuccessMock.mockRestore();
+    });
+
+    it('handles fee bump transactions', async () => {
+        const inner = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+            .addOperation(Operation.payment({ destination: account.accountId(), asset: Asset.native(), amount: '10' }))
+            .setTimeout(10)
+            .build();
+        (inner as any)._throw = true;
+        const feeBump = Object.create(FeeBumpTransaction.prototype);
+        Object.defineProperty(feeBump, 'innerTransaction', { value: inner, writable: true });
+        
+        const sim = await simulateTransaction(feeBump, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
+        expect(sim.status).toBe('unavailable');
+    });
+
+    it('parses auth and retval for host functions', async () => {
+        const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+            .addOperation(Operation.invokeHostFunction({
+                func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+                    new xdr.InvokeContractArgs({
+                        contractAddress: Address.contract(Buffer.alloc(32)).toScAddress(),
+                        functionName: 'test',
+                        args: []
+                    })
+                ),
+                auth: []
+            }))
+            .setTimeout(10)
+            .build();
+
+        (tx as any)._mockSim = {
+            minResourceFee: '10',
+            latestLedger: 100,
+            events: [],
+            result: {
+                auth: [{ credentials: { type: 'address' } }], // Mock auth
+                retval: xdr.ScVal.scvU32(42)
+            }
+        };
+
+        const isSimulationErrorMock = vi.spyOn(rpc.Api, 'isSimulationError').mockReturnValue(false);
+        const isSimulationRestoreMock = vi.spyOn(rpc.Api, 'isSimulationRestore').mockReturnValue(false);
+        const isSimulationSuccessMock = vi.spyOn(rpc.Api, 'isSimulationSuccess').mockReturnValue(true);
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: { getFunc: () => ({ outputs: ['u32'] }) } as any, source: 'network', warnings: [] });
+
+        const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
+        expect(sim.status).toBe('success');
+        expect(sim.auth?.length).toBe(1);
+        expect(sim.returnValue).toEqual({ kind: 'int', type: 'u32', value: '42' });
+        
+        isSimulationErrorMock.mockRestore();
+        isSimulationRestoreMock.mockRestore();
+        isSimulationSuccessMock.mockRestore();
+    });
+
+    it('falls through unknown simulation response', async () => {
+        const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+            .setTimeout(10)
+            .build();
+        (tx as any)._mockSim = {};
+        
+        const isSimulationErrorMock = vi.spyOn(rpc.Api, 'isSimulationError').mockReturnValue(false);
+        const isSimulationRestoreMock = vi.spyOn(rpc.Api, 'isSimulationRestore').mockReturnValue(false);
+        const isSimulationSuccessMock = vi.spyOn(rpc.Api, 'isSimulationSuccess').mockReturnValue(false);
+        
+        const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
+        expect(sim.status).toBe('unavailable');
         
         isSimulationErrorMock.mockRestore();
         isSimulationRestoreMock.mockRestore();

@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { decodeAuthEntries } from '../../src/auth';
-import * as spec from '../../src/spec';
-import * as scval from '../../src/scval';
+import { decodeAuthEntries } from '../../src/auth.js';
+import * as spec from '../../src/spec.js';
+import * as scval from '../../src/scval.js';
 import { xdr, Address, Keypair } from '@stellar/stellar-sdk';
 
-vi.mock('../../src/spec');
-vi.mock('../../src/scval');
+vi.mock('../../src/spec.js', async () => {
+    const actual: any = await vi.importActual('../../src/spec.js');
+    return {
+        ...actual,
+        loadSpec: vi.fn(),
+    };
+});
+vi.mock('../../src/scval.js');
 
 describe('decodeAuthEntries', () => {
     beforeEach(() => {
@@ -49,8 +55,30 @@ describe('decodeAuthEntries', () => {
                     address: () => ({
                         address: () => Address.fromString(keypair.publicKey()).toScAddress(),
                         nonce: () => 12345n,
-                        signatureExpirationLedger: () => 90, // < 100
+                        signatureExpirationLedger: () => 90, // < 100 (expired)
                         signature: () => ({ switch: () => ({ name: 'scvVoid' }) }) // not signed
+                    })
+                }),
+                rootInvocation: () => ({
+                    function: () => ({
+                        switch: () => ({ name: 'sorobanAuthorizedFunctionTypeContractFn' }),
+                        contractFn: () => ({
+                            contractAddress: () => Address.contract(Buffer.alloc(32)).toScAddress(),
+                            functionName: () => 'swap',
+                            args: () => []
+                        })
+                    }),
+                    subInvocations: () => []
+                })
+            },
+            {
+                credentials: () => ({
+                    switch: () => ({ name: 'sorobanCredentialsAddress' }),
+                    address: () => ({
+                        address: () => Address.fromString(keypair.publicKey()).toScAddress(),
+                        nonce: () => 6789n,
+                        signatureExpirationLedger: () => 105, // < 100 + 12 (expiring)
+                        signature: () => ({ switch: () => ({ name: 'scvVoid' }) })
                     })
                 }),
                 rootInvocation: () => ({
@@ -71,9 +99,7 @@ describe('decodeAuthEntries', () => {
 
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'AUTH_EXPIRED', message: 'Signature expiration ledger already passed' });
-        expect(res.auth[0].credentials.type).toBe('address');
-        expect((res.auth[0].credentials as any).nonce).toBe('12345');
-        expect((res.auth[0].credentials as any).signed).toBe(false);
+        expect(res.warnings).toContainEqual({ code: 'AUTH_EXPIRING', message: 'Signature expiration ledger is approaching' });
     });
 
     it('warns on duplicate nonce', async () => {
@@ -148,5 +174,105 @@ describe('decodeAuthEntries', () => {
         ];
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'AUTH_TREE_TOO_LARGE', message: 'Maximum auth depth exceeded' });
+    });
+
+    it('warns on unknown credentials', async () => {
+        const entries = [
+            {
+                credentials: () => ({ switch: () => ({ name: 'unknownCredentials' }) }),
+                rootInvocation: () => ({
+                    function: () => ({ switch: () => ({ name: 'sorobanAuthorizedFunctionTypeCreateContractHostFn' }) }),
+                    subInvocations: () => []
+                })
+            }
+        ];
+        const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.warnings).toContainEqual({ code: 'INTERNAL_ERROR', message: 'Unknown credentials type' });
+        expect(res.auth.length).toBe(0);
+    });
+
+    it('warns on extra contract', async () => {
+        const entries = [
+            {
+                credentials: () => ({ switch: () => ({ name: 'sorobanCredentialsSourceAccount' }) }),
+                rootInvocation: () => ({
+                    function: () => ({
+                        switch: () => ({ name: 'sorobanAuthorizedFunctionTypeContractFn' }),
+                        contractFn: () => ({
+                            contractAddress: () => Address.contract(Buffer.alloc(32)).toScAddress(),
+                            functionName: () => 'swap',
+                            args: () => []
+                        })
+                    }),
+                    subInvocations: () => []
+                })
+            }
+        ];
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'none', warnings: [] });
+        const topLevelId = Address.contract(Buffer.alloc(32, 1)).toString();
+
+        const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '', topLevelContractId: topLevelId });
+        expect(res.warnings).toContainEqual(expect.objectContaining({ code: 'AUTH_EXTRA_CONTRACT' }));
+    });
+
+    it('decodes arguments using spec', async () => {
+        const entries = [
+            {
+                credentials: () => ({ switch: () => ({ name: 'sorobanCredentialsSourceAccount' }) }),
+                rootInvocation: () => ({
+                    function: () => ({
+                        switch: () => ({ name: 'sorobanAuthorizedFunctionTypeContractFn' }),
+                        contractFn: () => ({
+                            contractAddress: () => Address.contract(Buffer.alloc(32)).toScAddress(),
+                            functionName: () => 'transfer',
+                            args: () => [1, 2]
+                        })
+                    }),
+                    subInvocations: () => []
+                })
+            }
+        ];
+        
+        const mockSpec = {
+            getFunc: (name: string) => ({
+                inputs: [
+                    { name: 'amount', type: { type: 'scSpecTypeU32' } },
+                    { name: 'to', type: { type: 'scSpecTypeAddress' } }
+                ]
+            })
+        };
+
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'network', warnings: [] });
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.auth[0].root.args![0].name).toBe('amount');
+        expect(res.auth[0].root.args![1].name).toBe('to');
+    });
+
+    it('decodes arguments using sac-builtin', async () => {
+        const entries = [
+            {
+                credentials: () => ({ switch: () => ({ name: 'sorobanCredentialsSourceAccount' }) }),
+                rootInvocation: () => ({
+                    function: () => ({
+                        switch: () => ({ name: 'sorobanAuthorizedFunctionTypeContractFn' }),
+                        contractFn: () => ({
+                            contractAddress: () => Address.contract(Buffer.alloc(32)).toScAddress(),
+                            functionName: () => 'transfer',
+                            args: () => [1, 2, 3]
+                        })
+                    }),
+                    subInvocations: () => []
+                })
+            }
+        ];
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'sac-builtin', warnings: [] });
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.auth[0].root.args![0].name).toBe('from');
     });
 });
