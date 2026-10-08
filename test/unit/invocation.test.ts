@@ -217,4 +217,135 @@ describe('decodeInvocation', () => {
         expect(res.invocation.contractId).toBe('');
         expect(res.invocation.functionName).toBe('Unknown');
     });
+
+    it('decodes create contract v1 with wasm executable', async () => {
+        const keypair = Keypair.random();
+        const op = {
+            body: () => ({
+                switch: () => ({ name: 'invokeHostFunction' }),
+                invokeHostFunction: () => ({
+                    hostFunction: () => ({
+                        switch: () => ({ name: 'hostFunctionTypeCreateContract' }),
+                        value: {
+                            contractIdPreimage: {
+                                type: 'contractIdPreimageFromAddress',
+                                value: { address: Address.fromString(keypair.publicKey()).toScAddress(), salt: Buffer.alloc(32) }
+                            },
+                            executable: {
+                                type: 'contractExecutableWasm',
+                                value: Buffer.alloc(32)
+                            }
+                        }
+                    })
+                })
+            })
+        };
+
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
+        expect(res.invocation.contractId).toBe('Deploy');
+        expect(res.invocation.args[2].value.value).toHaveLength(64); // 32 bytes hex
+    });
+
+    it('decodes create contract v2 with wasm executable', async () => {
+        const keypair = Keypair.random();
+        const op = {
+            body: () => ({
+                switch: () => ({ name: 'invokeHostFunction' }),
+                invokeHostFunction: () => ({
+                    hostFunction: () => ({
+                        switch: () => ({ name: 'hostFunctionTypeCreateContractV2' }),
+                        createContractV2: () => ({
+                            contractIdPreimage: () => ({
+                                switch: () => ({ name: 'contractIdPreimageFromAddress' }),
+                                value: () => ({
+                                    address: () => Address.fromString(keypair.publicKey()).toScAddress(),
+                                    salt: () => Buffer.alloc(32)
+                                })
+                            }),
+                            executable: () => ({
+                                switch: () => ({ name: 'contractExecutableWasm' }),
+                                wasmId: () => Buffer.alloc(32)
+                            }),
+                            constructorArgs: () => [{}]
+                        })
+                    })
+                })
+            })
+        };
+
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
+        expect(res.invocation.contractId).toBe('Deploy');
+        expect(res.invocation.args[2].value.value).toHaveLength(64); // 32 bytes hex
+        expect(res.invocation.args[3].name).toBe('constructorArgs');
+    });
+
+    it('handles sac-builtin with unknown function name', async () => {
+        const op = {
+            switch: () => ({ name: 'invokeHostFunction' }),
+            invokeHostFunctionOp: () => ({
+                hostFunction: () => ({
+                    switch: () => ({ name: 'hostFunctionTypeInvokeContract' }),
+                    invokeContract: () => ({
+                        contractAddress: Address.contract(Buffer.alloc(32)).toScAddress(),
+                        functionName: 'unknownBuiltin',
+                        args: [xdr.ScVal.scvU32(1)]
+                    })
+                }),
+                auth: () => []
+            })
+        } as any;
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'sac-builtin', warnings: [] });
+        
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.invocation.args[0]?.name ?? null).toBeNull();
+    });
+
+    it('handles invocation without spec', async () => {
+        const op = {
+            switch: () => ({ name: 'invokeHostFunction' }),
+            invokeHostFunctionOp: () => ({
+                hostFunction: () => ({
+                    switch: () => ({ name: 'hostFunctionTypeInvokeContract' }),
+                    invokeContract: () => ({
+                        contractAddress: Address.contract(Buffer.alloc(32)).toScAddress(),
+                        functionName: 'someFunc',
+                        args: [xdr.ScVal.scvU32(1)]
+                    })
+                }),
+                auth: () => []
+            })
+        } as any;
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'none', warnings: [] });
+        
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.invocation.args[0]?.name ?? null).toBeNull();
+    });
+
+    it('handles functionName fallback when string coercion is needed', async () => {
+        const op = {
+            switch: () => ({ name: 'invokeHostFunction' }),
+            invokeHostFunctionOp: () => ({
+                hostFunction: () => ({
+                    switch: () => ({ name: 'hostFunctionTypeInvokeContract' }),
+                    invokeContract: () => ({
+                        contractAddress: Address.contract(Buffer.alloc(32)).toScAddress(),
+                        functionName: {}, // POJO
+                        args: []
+                    })
+                }),
+                auth: () => []
+            })
+        } as any;
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'none', warnings: [] });
+        
+        const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.invocation.functionName).toBe('unknown');
+    });
 });

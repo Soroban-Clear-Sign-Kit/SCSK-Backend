@@ -275,4 +275,53 @@ describe('decodeAuthEntries', () => {
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
         expect(res.auth[0].root.args![0].name).toBe('from');
     });
+
+    it('warns on node count limit exceeded', async () => {
+        const buildWideInv = (breadth: number): any => {
+            const subInvocations = [];
+            for (let i = 0; i < breadth; i++) {
+                subInvocations.push({
+                    function: () => ({ switch: () => ({ name: 'scvVoid' }) }),
+                    subInvocations: () => []
+                });
+            }
+            return {
+                function: () => ({ switch: () => ({ name: 'scvVoid' }) }),
+                subInvocations: () => subInvocations
+            };
+        };
+        const entries = [
+            {
+                credentials: () => ({ switch: () => ({ name: 'sorobanCredentialsSourceAccount' }) }),
+                rootInvocation: () => buildWideInv(300) // exceeds MAX_AUTH_NODES=256
+            }
+        ];
+        const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.warnings).toContainEqual({ code: 'AUTH_TREE_TOO_LARGE', message: 'Maximum auth nodes exceeded' });
+    });
+
+    it('decodes arguments without spec', async () => {
+        const entries = [
+            {
+                credentials: () => ({ switch: () => ({ name: 'sorobanCredentialsSourceAccount' }) }),
+                rootInvocation: () => ({
+                    function: () => ({
+                        switch: () => ({ name: 'sorobanAuthorizedFunctionTypeContractFn' }),
+                        contractFn: () => ({
+                            contractAddress: () => Address.contract(Buffer.alloc(32)).toScAddress(),
+                            functionName: () => 'someFunc',
+                            args: () => [1, 2]
+                        })
+                    }),
+                    subInvocations: () => []
+                })
+            }
+        ];
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'network', warnings: [] }); 
+        vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
+
+        const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
+        expect(res.auth[0].root.args![0].name).toBeNull();
+    });
 });
