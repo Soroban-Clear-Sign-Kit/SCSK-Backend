@@ -150,4 +150,40 @@ describe('resolveTokenMetadata', () => {
         
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
     });
+
+    it('adds warning if simulation returns unexpected types', async () => {
+        // mock decimals call to return i32 instead of u32
+        mockSimulate.mockResolvedValueOnce({
+            result: { retval: xdr.ScVal.scvI32(7) },
+            events: [],
+            latestLedger: 100
+        } as any);
+
+        // mock symbol call to return i32 instead of string/symbol
+        mockSimulate.mockResolvedValueOnce({
+            result: { retval: xdr.ScVal.scvI32(0) },
+            events: [],
+            latestLedger: 100
+        } as any);
+
+        vi.spyOn(rpc.Api, 'isSimulationSuccess').mockReturnValue(true);
+
+        const sourceAccount = Keypair.random().publicKey();
+        const contractId = Address.contract(Buffer.alloc(32, 5)).toString();
+        const effects: BalanceDelta[] = [
+            { tokenContractId: contractId, account: sourceAccount, delta: '1000' }
+        ];
+
+        const res = await resolveTokenMetadata(effects, {
+            rpcUrl: 'https://mock',
+            networkPassphrase: 'test',
+            sourceAccount: sourceAccount
+        });
+
+        expect(res.warnings.length).toBe(1);
+        expect(res.warnings[0].code).toBe('TOKEN_METADATA_UNAVAILABLE');
+        expect(effects[0].symbol).toBeUndefined(); // Fallbacks remain undefined
+        
+        vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
+    });
 });
