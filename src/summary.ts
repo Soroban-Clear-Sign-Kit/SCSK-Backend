@@ -1,5 +1,5 @@
-import { Invocation, AuthEntry, BalanceDelta, SimulationResult } from './types.js';
-
+import { Invocation, AuthEntry, BalanceDelta } from './types.js';
+import { SimulationResult } from './simulate.js';
 export function generateSummary(
   invocation: Invocation | undefined,
   auth: AuthEntry[],

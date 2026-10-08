@@ -1,4 +1,4 @@
-import { rpc, TransactionBuilder, xdr, Networks, Address, Contract } from '@stellar/stellar-sdk';
+import { rpc, TransactionBuilder, xdr, Networks, Address, Contract, Account } from '@stellar/stellar-sdk';
 import { BalanceDelta } from './types.js';
 import { WarningCode } from './errors.js';
 import { RPC_TIMEOUT_MS } from './limits.js';
@@ -83,7 +83,7 @@ export function formatAmount(rawIntegerStr: string, decimals: number): string {
 async function readContractNumber(server: rpc.Server, opts: TokenMetadataOptions, contractId: string, func: string): Promise<number | null> {
   const contract = new Contract(contractId);
   const tx = new TransactionBuilder(
-    new rpc.Account(opts.sourceAccount, "0"),
+    new Account(opts.sourceAccount, "0"),
     { fee: "100", networkPassphrase: opts.networkPassphrase }
   ).addOperation(contract.call(func)).setTimeout(0).build();
 
@@ -94,7 +94,7 @@ async function readContractNumber(server: rpc.Server, opts: TokenMetadataOptions
   
   const response = await Promise.race([simulatePromise, timeoutPromise]);
   if (rpc.Api.isSimulationSuccess(response) && response.result && response.result.retval) {
-    const val = response.result.retval;
+    const val: any = response.result.retval;
     if (val.switch().name === 'scvU32') {
       return val.u32();
     }
@@ -105,7 +105,7 @@ async function readContractNumber(server: rpc.Server, opts: TokenMetadataOptions
 async function readContractString(server: rpc.Server, opts: TokenMetadataOptions, contractId: string, func: string): Promise<string | null> {
   const contract = new Contract(contractId);
   const tx = new TransactionBuilder(
-    new rpc.Account(opts.sourceAccount, "0"),
+    new Account(opts.sourceAccount, "0"),
     { fee: "100", networkPassphrase: opts.networkPassphrase }
   ).addOperation(contract.call(func)).setTimeout(0).build();
 
@@ -116,7 +116,7 @@ async function readContractString(server: rpc.Server, opts: TokenMetadataOptions
   
   const response = await Promise.race([simulatePromise, timeoutPromise]);
   if (rpc.Api.isSimulationSuccess(response) && response.result && response.result.retval) {
-    const val = response.result.retval;
+    const val: any = response.result.retval;
     if (val.switch().name === 'scvString') {
       return val.str().toString('utf8');
     } else if (val.switch().name === 'scvSymbol') {

@@ -1,4 +1,5 @@
-import { ClearSignPreview, Intent, AuthEntry, Invocation, BalanceDelta, SimulationResult } from './types.js';
+import { ClearSignPreview, Intent, AuthEntry, Invocation, BalanceDelta } from './types.js';
+import { SimulationResult } from './simulate.js';
 import { WarningCode, WARNING_SEVERITY } from './errors.js';
 import { parseEnvelope } from './envelope.js';
 import { decodeInvocation } from './invocation.js';
@@ -77,7 +78,9 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      let invocation: Invocation | undefined;
      const op = innerTx.operations[0];
      if (op) {
-        const invResult = await decodeInvocation(op, { networkPassphrase: input.networkPassphrase, rpcUrl: input.rpcUrl, specs: input.specs });
+        const invOpts: any = { networkPassphrase: input.networkPassphrase, rpcUrl: input.rpcUrl, specs: input.specs };
+        Object.keys(invOpts).forEach(k => invOpts[k] === undefined && delete invOpts[k]);
+        const invResult = await decodeInvocation(op, invOpts);
         invocation = invResult.invocation;
         addWarning(invResult.warnings);
      }
@@ -87,12 +90,13 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      let effects: BalanceDelta[] = [];
      let auth: AuthEntry[] = [];
      
-     const simOpts = {
+     const simOpts: any = {
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
         feeWarningMultiplier: input.options?.feeWarningMultiplier,
         specs: input.specs
      };
+     Object.keys(simOpts).forEach(k => simOpts[k] === undefined && delete simOpts[k]);
      
      simulation = await simulateTransaction(tx, simOpts);
      addWarning(simulation.warnings);
@@ -112,7 +116,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
 
      // Auth
      const authXdr = simulation.auth || [];
-     const authOpts = {
+     const authOpts: any = {
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
         minAuthValidityLedgers: input.options?.minAuthValidityLedgers,
@@ -120,6 +124,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         topLevelContractId: invocation?.contractId,
         specs: input.specs
      };
+     Object.keys(authOpts).forEach(k => authOpts[k] === undefined && delete authOpts[k]);
      
      const authResult = await decodeAuthEntries(authXdr, latestLedger, authOpts);
      auth = authResult.auth;

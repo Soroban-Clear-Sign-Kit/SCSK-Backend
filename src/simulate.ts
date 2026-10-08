@@ -73,10 +73,10 @@ export async function simulateTransaction(
        
        const op = innerTx.operations[0];
        if (op && op.type === 'invokeHostFunction' && op.func) {
-         const func = op.func;
-         const funcSwitch = (func && typeof func.switch === 'function') ? func.switch().name : func.type;
+         const f: any = op.func;
+         const funcSwitch = (f && typeof f.switch === 'function') ? f.switch().name : f.type;
          if (funcSwitch === 'hostFunctionTypeInvokeContract') {
-            const invokeArgs = typeof func.invokeContract === 'function' ? func.invokeContract() : func.invokeContract;
+            const invokeArgs = typeof f.invokeContract === 'function' ? f.invokeContract() : f.invokeContract;
             const contractAddressObj = typeof invokeArgs.contractAddress === 'function' ? invokeArgs.contractAddress() : invokeArgs.contractAddress;
             const contractId = Address.fromScAddress(contractAddressObj).toString();
             const rawFn = typeof invokeArgs.functionName === 'function' ? invokeArgs.functionName() : invokeArgs.functionName;
@@ -90,8 +90,8 @@ export async function simulateTransaction(
                  returnType = funcEntry.outputs[0];
                }
             } else if (specResult.source === 'sac-builtin') {
-               const sacDef = SAC_FUNCTIONS[functionName];
-               if (sacDef && sacDef.outputs.length > 0) {
+               const sacDef: any = SAC_FUNCTIONS[functionName];
+               if (sacDef && sacDef.outputs && sacDef.outputs.length > 0) {
                  returnType = sacDef.outputs[0];
                }
             }
@@ -112,7 +112,11 @@ export async function simulateTransaction(
       warnings.push({ code: 'FEE_UNUSUALLY_HIGH', message: 'Declared fee is unusually high compared to simulated fee' });
     }
 
-    return { status: 'success', minResourceFee, latestLedger, returnValue, events, auth, warnings };
+    const result: any = { status: 'success', minResourceFee, latestLedger, events, auth, warnings };
+    if (returnValue !== undefined) {
+       result.returnValue = returnValue;
+    }
+    return result;
   }
 
   warnings.push({ code: 'SIMULATION_UNAVAILABLE', message: 'Unknown simulation response type' });

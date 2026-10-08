@@ -55,14 +55,14 @@ export async function decodeInvocation(
         if (args.length !== sacDef.args.length) {
           warnings.push({ code: 'ARG_COUNT_MISMATCH', message: 'Argument count does not match SAC definition' });
         }
-        decodedArgs = args.map((arg, i) => {
+        decodedArgs = args.map((arg: any, i: number) => {
           const expected = sacDef.args[i];
           const res = decodeScVal(arg, null, null);
           warnings.push(...res.warnings);
           return { name: expected?.name || null, typeName: expected?.type || null, value: res.value };
         });
       } else {
-        decodedArgs = args.map(arg => {
+        decodedArgs = args.map((arg: any) => {
           const res = decodeScVal(arg, null, null);
           warnings.push(...res.warnings);
           return { name: null, typeName: null, value: res.value };
@@ -76,7 +76,7 @@ export async function decodeInvocation(
         if (args.length !== inputs.length) {
           warnings.push({ code: 'ARG_COUNT_MISMATCH', message: 'Argument count does not match contract spec' });
         }
-        decodedArgs = args.map((arg, i) => {
+        decodedArgs = args.map((arg: any, i: number) => {
           const input = inputs[i];
           const name = input ? (typeof input.name === 'string' ? input.name : Buffer.from(input.name as any).toString('utf8')) : null;
           const typeDef = input ? input.type : null;
@@ -101,14 +101,14 @@ export async function decodeInvocation(
           return { name, typeName: typeDef ? typeDef.type : null, value: res.value };
         });
       } else {
-        decodedArgs = args.map(arg => {
+        decodedArgs = args.map((arg: any) => {
           const res = decodeScVal(arg, null, null);
           warnings.push(...res.warnings);
           return { name: null, typeName: null, value: res.value };
         });
       }
     } else {
-      decodedArgs = args.map(arg => {
+      decodedArgs = args.map((arg: any) => {
         const res = decodeScVal(arg, null, null);
         warnings.push(...res.warnings);
         return { name: null, typeName: null, value: res.value };

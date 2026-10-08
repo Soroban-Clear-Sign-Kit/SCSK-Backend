@@ -104,7 +104,7 @@ export async function decodeAuthEntries(
         }
 
         let decodedArgs: DecodedArg[] = [];
-        if (specResult.source === 'sac-builtin') {
+        if (specResult.source === 'sac-builtin' && functionName) {
           const sacDef = SAC_FUNCTIONS[functionName];
           decodedArgs = scVals.map((arg: any, i: number) => {
             const expected = sacDef?.args[i];
@@ -112,7 +112,7 @@ export async function decodeAuthEntries(
             warnings.push(...res.warnings);
             return { name: expected?.name || null, typeName: expected?.type || null, value: res.value };
           });
-        } else if (specResult.spec) {
+        } else if (specResult.spec && functionName) {
           const spec = specResult.spec;
           const funcEntry = spec.getFunc(functionName);
           decodedArgs = scVals.map((arg: any, i: number) => {
@@ -143,7 +143,7 @@ export async function decodeAuthEntries(
         children.push(await walkInvocation(sub, depth + 1));
       }
 
-      return {
+      const node: any = {
         kind,
         contractId,
         functionName,
@@ -152,6 +152,11 @@ export async function decodeAuthEntries(
         children,
         depth
       };
+      
+      // Remove undefined fields
+      Object.keys(node).forEach(key => node[key] === undefined && delete node[key]);
+
+      return node as AuthNode;
     }
 
     const rootInvoc = typeof entry.rootInvocation === 'function' ? entry.rootInvocation() : entry.rootInvocation;
