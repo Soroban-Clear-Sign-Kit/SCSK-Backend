@@ -3,17 +3,11 @@ import { formatAmount } from '../../src/tokens.js';
 
 describe('tokens formatting', () => {
   it('formats zero correctly', () => {
-    expect(formatAmount('0', 7)).toBe('0.0000000'); // wait, the logic drops trailing zeros if it's purely '0'. 
-    // actually, my logic padStart(decimals+1)
-    // '0'.padStart(8, '0') -> '00000000'
-    // intPart '0', fracPart '0000000'
-    // trimmedFrac ''
-    // result '0'
     expect(formatAmount('0', 7)).toBe('0');
   });
 
   it('formats values over 2^64', () => {
-    expect(formatAmount('18446744073709551616', 7)).toBe('18446744073709.551616');
+    expect(formatAmount('18446744073709551616', 7)).toBe('1844674407370.9551616');
   });
 
   it('formats negative values', () => {
