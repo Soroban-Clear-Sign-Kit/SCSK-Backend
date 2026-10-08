@@ -15,7 +15,20 @@ export function generateSummary(
     } else if (invocation.contractId === 'Upload') {
        summary.push('Upload contract code');
     } else {
-       summary.push(`Call ${invocation.functionName} on contract ${invocation.contractId}`);
+       const fn = invocation.functionName;
+       if (fn === 'balance' && invocation.args.length > 0 && invocation.args[0].value.kind === 'address') {
+         summary.push(`Reads the balance of ${invocation.args[0].value.value} on token ${invocation.contractId}`);
+       } else if (fn === 'allowance' && invocation.args.length > 1 && invocation.args[0].value.kind === 'address' && invocation.args[1].value.kind === 'address') {
+         summary.push(`Reads the allowance from ${invocation.args[0].value.value} for spender ${invocation.args[1].value.value} on token ${invocation.contractId}`);
+       } else if (fn === 'decimals') {
+         summary.push(`Reads the decimals of token ${invocation.contractId}`);
+       } else if (fn === 'name') {
+         summary.push(`Reads the name of token ${invocation.contractId}`);
+       } else if (fn === 'symbol') {
+         summary.push(`Reads the symbol of token ${invocation.contractId}`);
+       } else {
+         summary.push(`Call ${fn} on contract ${invocation.contractId}`);
+       }
     }
   }
 
