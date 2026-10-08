@@ -39,3 +39,7 @@
 ## Phase 9: Documentation, Demo, and Release
 - **Status:** Complete
 - **What was built:** Wrote full documentation (`API.md`, `SECURITY-MODEL.md`), setup repository files (`CONTRIBUTING.md`, etc.), implemented a Vite demo application, and successfully executed the final QA checklist. Code is fully typed and ready for publication.
+
+## Seed Backlog
+- **Status:** Complete
+- **What was built:** Added decoding of create-contract-v2 constructor arguments, implemented Vue wrapper in frontend, fetched mainnet fixtures, localized summaries.

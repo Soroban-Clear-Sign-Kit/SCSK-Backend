@@ -11,3 +11,6 @@ During implementation, the following API mappings were recorded from `@stellar/s
 
 ## CSS and Asset Handling
 - We implemented raw CSS variables instead of depending on styled-components or Tailwind to ensure maximum compatibility for developers dropping `ClearSignModal` into diverse codebases.
+
+## Repository Layout Deviation
+- The user requested strict separation of packages into \SCSK-Backend\ and \SCSK-Frontend\ directories instead of a single monorepo at \clearsign/\.
