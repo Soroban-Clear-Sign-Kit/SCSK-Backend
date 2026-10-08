@@ -1,4 +1,4 @@
-import { xdr, Address } from '@stellar/stellar-sdk';
+import { xdr, Address, StrKey } from '@stellar/stellar-sdk';
 import { WarningCode } from './errors.js';
 import { BalanceDelta } from './types.js';
 
@@ -18,10 +18,10 @@ export function extractTokenEffects(
     const event: any = diagnosticEvent.event;
     
     const eventType: any = typeof event.type === 'function' ? event.type() : event.type;
-    if (eventType.name !== 'contractEventTypeContract' && eventType.value !== 0) continue; // contract = 0
+    if (eventType.name !== 'contractEventTypeContract' && eventType.name !== 'contract' && eventType.value !== 1) continue;
 
     const eventContractId = typeof event.contractId === 'function' ? event.contractId() : event.contractId;
-    const contractId = eventContractId ? Address.fromScAddress(eventContractId).toString() : null;
+    const contractId = eventContractId ? StrKey.encodeContract(eventContractId) : null;
     if (!contractId) continue;
 
     const eventBody = typeof event.body === 'function' ? event.body() : event.body;
@@ -87,8 +87,10 @@ export function extractTokenEffects(
 function extractAddress(scval: xdr.ScVal | undefined): string | null {
   if (!scval) return null;
   const val: any = scval;
-  if (val.switch().name === 'scvAddress') {
-    return Address.fromScAddress(val.address()).toString();
+  const type = typeof val.switch === 'function' ? val.switch().name : val.type;
+  if (type === 'scvAddress') {
+    const address = typeof val.address === 'function' ? val.address() : val.address;
+    return Address.fromScAddress(address).toString();
   }
   return null;
 }
@@ -96,18 +98,20 @@ function extractAddress(scval: xdr.ScVal | undefined): string | null {
 function extractAmount(data: xdr.ScVal | undefined, warnings: { code: WarningCode; message: string }[]): bigint | null {
   if (!data) return null;
   const val: any = data;
-  const type = val.switch().name;
+  const type = typeof val.switch === 'function' ? val.switch().name : val.type;
   if (type === 'scvI128') {
-    const parts = val.i128();
-    const lo = BigInt(parts.lo().toString());
-    const hi = BigInt(parts.hi().toString());
+    const parts = typeof val.i128 === 'function' ? val.i128() : val.i128;
+    const lo = BigInt((typeof parts.lo === 'function' ? parts.lo() : parts.lo).toString());
+    const hi = BigInt((typeof parts.hi === 'function' ? parts.hi() : parts.hi).toString());
     return (hi << 64n) | lo;
   } else if (type === 'scvMap') {
-    const entries = val.map();
+    const entries = typeof val.map === 'function' ? val.map() : val.map;
     if (entries) {
       for (const entry of entries) {
         const key: any = typeof entry.key === 'function' ? entry.key() : entry.key;
-        if (key.switch().name === 'scvSymbol' && key.sym().toString() === 'amount') {
+        const keyType = typeof key.switch === 'function' ? key.switch().name : key.type;
+        const keySym = typeof key.sym === 'function' ? key.sym() : key.sym;
+        if (keyType === 'scvSymbol' && keySym.toString() === 'amount') {
           return extractAmount(typeof entry.val === 'function' ? entry.val() : entry.val, warnings);
         }
       }
