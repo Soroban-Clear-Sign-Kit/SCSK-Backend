@@ -76,25 +76,24 @@ export function extractTokenEffects(
     }
 
     if (amount !== null) {
-      if (!deltas[contractId]) deltas[contractId] = {};
-      
+      const contractDeltas = (deltas[contractId] ??= {});
+
       if (from) {
-        deltas[contractId][from] = (deltas[contractId][from] || 0n) - amount;
+        contractDeltas[from] = (contractDeltas[from] ?? 0n) - amount;
       }
       if (to) {
-        deltas[contractId][to] = (deltas[contractId][to] || 0n) + amount;
+        contractDeltas[to] = (contractDeltas[to] ?? 0n) + amount;
       }
     }
   }
 
-  for (const contractId in deltas) {
-    for (const account in deltas[contractId]) {
-      const delta = deltas[contractId][account];
+  for (const [contractId, contractDeltas] of Object.entries(deltas)) {
+    for (const [account, delta] of Object.entries(contractDeltas)) {
       if (delta !== 0n) {
         effects.push({
           tokenContractId: contractId,
           account,
-          delta: delta!.toString()
+          delta: delta.toString()
         });
       }
     }
