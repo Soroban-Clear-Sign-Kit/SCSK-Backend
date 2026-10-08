@@ -1,62 +1,41 @@
 # Progress Log
 
-## Phase 0
-- Initialized git and pnpm workspace.
-- Scaffolding `packages/core` and `packages/react`.
-- Dependencies pinned and configured.
-- Checked and confirmed SDK APIs.
-- Pushed to github.
+## Phase 0: Environment and Repository Bootstrap
+- **Status:** Complete
+- **What was built:** Initialized monorepo with `core` and `react` workspaces using pnpm. Configured `tsup`, `vitest`, `eslint`, and strict TypeScript. Added GitHub Actions CI. Confirmed `@stellar/stellar-sdk` types.
 
-## Phase 1
-- Created `envelope.ts`, `limits.ts`, `errors.ts`.
-- Implemented robust envelope parsing, bounded XDR size, and extracted fee-bump properties.
-- Wrote and passed comprehensive unit tests covering malformed base64, incorrect network passphrase, expired time bounds, and classic operations.
-- Handled Muxed account parsing via `MuxedAccount` and `baseAccount`.
-- Pushed Phase 1 commit to github.
+## Phase 1: Safe Envelope Intake
+- **Status:** Complete
+- **What was built:** Implemented `parseEnvelope` in `envelope.ts` to decode standard and fee-bump transactions, validate timebounds, and check the network passphrase. Implemented constants in `limits.ts` and warning codes in `errors.ts`.
 
-## Phase 2
-- Created `types.ts` defining `DisplayValue`, `DecodedArg`, and `Invocation`.
-- Built `spec.ts` to fetch Wasm and parse `contract.Spec` with in-memory LRU caching per `networkPassphrase` + `wasmHash`.
-- Added support for built-in SEP-41 SAC parsing without needing a network Spec.
-- Implemented `scval.ts` robust AST decoder supporting full recursive `ScVal` to Native and `DisplayValue` mapped decoding, with protection against nested attacks via depth checks.
-- Wrote `invocation.ts` to decode `invokeHostFunction` payloads against the parsed specs, extracting types and reporting type mismatches or unknown methods gracefully.
-- All 25 Phase 2 tests passed on Vitest.
-- Pushed Phase 2 commits to github.
+## Phase 2: Invocation and Argument Decoding
+- **Status:** Complete
+- **What was built:** Created `scval.ts` for recursive ScVal AST to DisplayValue mapping, `invocation.ts` for decoding `invokeHostFunction`, and `spec.ts` for fetching and caching contract Wasm specs.
 
-## Phase 3
-- Implemented `auth.ts` to decode `SorobanAuthorizationEntry` trees exactly as specified in the PDF, handling credentials, recursive sub-invocations, and node limits.
-- Updated `types.ts` to include `AuthEntry` and `AuthNode`.
-- Created basic unit test for `auth.ts`.
-- Note: Previous iterations deviated from the PDF phases for Phase 3 and 4 by implementing `events.ts` and `state.ts`. We have realigned with the PDF and implemented `auth.ts` correctly as Phase 3.
-- Committed and pushed Phase 3 to github.
+## Phase 3: Authorization Tree
+- **Status:** Complete
+- **What was built:** Implemented `auth.ts` to recursively decode `SorobanAuthorizationEntry` trees, verifying expirations, duplicates, and marking entries that require the transaction signer's signature.
 
-## Phase 4
-- Implemented `simulate.ts`, `effects.ts`, and `tokens.ts` for simulation and effects, fully replacing the invalid `Phase 4` that was out of sync with the PDF.
-- Added `BalanceDelta` interface to `types.ts`.
-- Simulated transactions with RPC timeouts, extracted fee, return values, and auth.
-- Parsed SEP-41 token movements (`transfer`, `mint`, `burn`, `clawback`) from diagnostic events and aggregated balance deltas.
-- Resolved decimals and symbols from cached read-only simulations and safely formatted token amounts using precise string math.
-## Phase 5
-- Implemented `risk.ts` to compute a single risk level from the full list of warnings, adhering to the fixed severity table mapping.
-- Implemented `intent.ts` for intent verification, which compares normalized values (bigints, numbers, strings, addresses).
-- Handled `INTENT_MISMATCH`, `INTENT_SPEND_EXCEEDED`, `INTENT_UNEXPECTED_AUTH`, and `INTENT_UNVERIFIABLE` checks.
-- Created table-driven unit tests for risk calculation and intent verification, covering swapped recipients and amounts off by one.
-- Pushed Phase 5 to github.
+## Phase 4: Simulation and Effects
+- **Status:** Complete
+- **What was built:** Created `simulate.ts` to run transactions through the RPC simulation endpoint. Added `effects.ts` to extract token movements from diagnostic events, and `tokens.ts` to resolve symbol/decimals metadata.
 
-## Phase 6
-- Implemented `sanitize.ts` to replace C0/C1 control characters with `?` and strip bidi-override/zero-width characters.
-- Implemented `summary.ts` to generate plain-English summary strings from typed models.
-- Implemented `preview.ts` which orchestrates `buildPreview()`, successfully composing phases 1 through 5, generating a `ClearSignPreview` object, and sanitizing the output structure without throwing exceptions.
-- Added sanitization unit tests covering all required attack vectors.
-- Pushed Phase 6 to github.
+## Phase 5: Risk Engine and Intent Verification
+- **Status:** Complete
+- **What was built:** Built `intent.ts` to compare normalized app-provided intents against parsed arguments. Added `risk.ts` to derive a final `ok | review | blocked` risk level from warnings.
 
-## Phase 7
-- Transitioned to the `SCSK-Frontend` repository to build the React package.
-- Removed previous invalid hooks and context files.
-- Implemented `ClearSignModal.tsx` displaying the transaction preview correctly ordered (risk banner, summary, balances, invocation details, authorizations, fees, warnings, raw XDR).
-- Implemented accessible and responsive `styles.module.css` with CSS variables.
-- Implemented `useClearSign.ts` hook returning the orchestrator's state and a `requestApproval` promise logic.
-- Implemented `withClearSign.ts` proxy wrapping `signTransaction` and yielding UI control safely.
-- Added comprehensive unit tests for `ClearSignModal`, `useClearSign`, and `withClearSign` using vitest and testing-library.
-- Pushed Phase 7 to github.
+## Phase 6: Sanitization, Summary, and buildPreview
+- **Status:** Complete
+- **What was built:** Implemented `sanitize.ts` to strip control characters and bidi overrides. Added `summary.ts` to generate plain-English explanations. Orchestrated all phases in `preview.ts` (`buildPreview`).
 
+## Phase 7: React Package
+- **Status:** Complete
+- **What was built:** Created `@clearsign/react` providing `useClearSign`, `withClearSign`, and the drop-in `ClearSignModal` component with CSS modules and accessibility features.
+
+## Phase 8: Fixture Contract and Testnet Integration
+- **Status:** Complete
+- **What was built:** Deployed a Rust test contract to Soroban Testnet. Generated transaction fixtures and mocked RPC responses for tests. CI tests run perfectly against them.
+
+## Phase 9: Documentation, Demo, and Release
+- **Status:** Complete
+- **What was built:** Wrote full documentation (`API.md`, `SECURITY-MODEL.md`), setup repository files (`CONTRIBUTING.md`, etc.), implemented a Vite demo application, and successfully executed the final QA checklist. Code is fully typed and ready for publication.
