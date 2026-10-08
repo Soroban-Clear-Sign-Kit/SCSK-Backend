@@ -160,11 +160,10 @@ export function decodeScVal(
       }
       case 'scvAddress': {
         const addrStr = scValToNative(scVal).toString();
-        let type: 'account' | 'contract' | 'muxed' | 'other' = 'other';
+        let type: 'account' | 'contract' | 'other' = 'other';
         if (addrStr.startsWith('G')) type = 'account';
         else if (addrStr.startsWith('C')) type = 'contract';
-        else if (addrStr.startsWith('M')) type = 'muxed';
-        return { value: { kind: 'address', value: addrStr, addressType: type }, warnings };
+        return { value: { kind: 'address', value: addrStr, addressType: type as any }, warnings };
       }
       case 'scvVec': {
         const items = scVal.value || [];

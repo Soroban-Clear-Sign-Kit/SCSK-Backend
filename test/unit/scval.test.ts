@@ -275,4 +275,13 @@ describe('decodeScVal', () => {
         expect((resUnknown.value as any).variant).toBe('999');
     });
 
+    it('decodes address types properly', () => {
+        // Contract address C...
+        const contractAddrStr = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4';
+        const scValContract = xdr.ScVal.scvAddress(
+            Address.fromString(contractAddrStr).toScAddress()
+        );
+        const resContract = decodeScVal(scValContract);
+        expect(resContract.value).toEqual({ kind: 'address', value: contractAddrStr, addressType: 'contract' });
+    });
 });
