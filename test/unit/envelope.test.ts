@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseEnvelope } from '../../src/envelope.js';
-import { TransactionBuilder, Networks, Keypair, Operation, Memo, Account, Asset } from '@stellar/stellar-sdk';
+import { TransactionBuilder, Networks, Keypair, Operation, Memo, Account, Asset, xdr, MuxedAccount, Address } from '@stellar/stellar-sdk';
 
 const source = Keypair.random();
 const account = new Account(source.publicKey(), '1');
@@ -71,10 +71,37 @@ describe('parseEnvelope', () => {
   });
 
   it('rejects transactions with zero operations', () => {
-    // TransactionBuilder requires at least 1 op, so we build it manually or use a trick
-    // For now we'll just test the code path if we can bypass the builder
-    // The parser checks operations.length === 0, but Stellar SDK might throw earlier.
-    // It's covered by the try-catch if it throws.
+    // This is a pre-generated valid TransactionEnvelope XDR base64 string that has an empty operations array (length = 0)
+    const zeroOpsXdrBase64 = 'AAAAAgAAAABE0aqUsSMVcuqT+BDRi0dLNpFG3EZx9gDSBCSB5OHoaAAAAGQAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    const res = parseEnvelope(zeroOpsXdrBase64, Networks.TESTNET);
+    expect(res.success).toBe(false);
+    if (!res.success) expect(res.error.message).toBe('Transaction has no operations');
+  });
+
+  it('rejects transactions with multiple invokeHostFunction operations', () => {
+    const invokeOp = Operation.invokeHostFunction({ func: xdr.HostFunction.hostFunctionTypeInvokeContract(new xdr.InvokeContractArgs({ contractAddress: new Address(source.publicKey()).toScAddress(), functionName: 'a', args: [] })), auth: [] });
+    const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+      .addOperation(invokeOp)
+      .addOperation(invokeOp)
+      .setTimeout(0)
+      .build();
+    const res = parseEnvelope(tx.toXDR(), Networks.TESTNET);
+    expect(res.success).toBe(false);
+    if (!res.success) expect(res.error.message).toContain('Multiple invokeHostFunction operations not supported');
+  });
+
+  it('handles Muxed source account', () => {
+    const muxedAcc = new MuxedAccount(account, '1234');
+    const tx = new TransactionBuilder(muxedAcc, { fee: '100', networkPassphrase: Networks.TESTNET })
+      .addOperation(Operation.payment({ destination: source.publicKey(), asset: Asset.native(), amount: '10' }))
+      .setTimeout(0)
+      .build();
+    const res = parseEnvelope(tx.toXDR(), Networks.TESTNET);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.envelope.source).toContain('M');
+      expect(res.envelope.source).toContain(source.publicKey());
+    }
   });
 
   it('warns for expired time bounds', () => {
