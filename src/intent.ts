@@ -32,7 +32,12 @@ export function verifyIntent(
   const normalizeDisplay = (val: DisplayValue): string => {
     switch (val.kind) {
       case 'int': return val.value;
-      case 'address': return Address.fromString(val.value).toString();
+      case 'address': 
+        try {
+          return Address.fromString(val.value).toString();
+        } catch {
+          return val.value;
+        }
       case 'bytes': return val.hex.toLowerCase();
       case 'string': return val.value;
       case 'symbol': return val.value;
