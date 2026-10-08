@@ -76,7 +76,7 @@ export async function loadSpec(
   }
 
   const networkKey = `${opts.networkPassphrase || ''}-${contractId}`;
-  const server = new rpc.Server(opts.rpcUrl);
+  const server = new rpc.Server(opts.rpcUrl, { allowHttp: opts.rpcUrl.startsWith('http://') });
 
   try {
     // 1. Check if we already know the wasm hash or if it's a known SAC

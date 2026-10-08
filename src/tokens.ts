@@ -16,7 +16,7 @@ export async function resolveTokenMetadata(
   opts: TokenMetadataOptions
 ): Promise<{ warnings: { code: WarningCode; message: string }[] }> {
   const warnings: { code: WarningCode; message: string }[] = [];
-  const server = new rpc.Server(opts.rpcUrl);
+  const server = new rpc.Server(opts.rpcUrl, { allowHttp: opts.rpcUrl.startsWith('http://') });
 
   const uniqueContracts = Array.from(new Set(effects.map(e => e.tokenContractId)));
 

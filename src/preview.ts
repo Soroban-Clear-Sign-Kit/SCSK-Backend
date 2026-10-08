@@ -41,7 +41,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
   };
 
   try {
-     const server = new rpc.Server(input.rpcUrl);
+     const server = new rpc.Server(input.rpcUrl, { allowHttp: input.rpcUrl.startsWith('http://') });
      let rpcNetwork: rpc.Api.GetNetworkResponse;
      try {
        rpcNetwork = await server.getNetwork();
@@ -137,7 +137,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      
      if (!latestLedger) {
         try {
-            const server = new rpc.Server(input.rpcUrl);
+            const server = new rpc.Server(input.rpcUrl, { allowHttp: input.rpcUrl.startsWith('http://') });
             const info = await server.getLatestLedger();
             latestLedger = info.sequence;
         } catch (e) {

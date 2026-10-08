@@ -29,7 +29,7 @@ export async function simulateTransaction(
   const innerTx = tx instanceof FeeBumpTransaction ? tx.innerTransaction : tx;
   
   let response: rpc.Api.SimulateTransactionResponse;
-  const server = new rpc.Server(opts.rpcUrl);
+  const server = new rpc.Server(opts.rpcUrl, { allowHttp: opts.rpcUrl.startsWith('http://') });
 
   try {
     const simulatePromise = server.simulateTransaction(innerTx);
