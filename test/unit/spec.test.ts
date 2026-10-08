@@ -120,4 +120,105 @@ describe('spec caching', () => {
     expect(res.source).toBe('none');
     expect(res.warnings[0].code).toBe('SPEC_UNAVAILABLE');
   });
+
+  it('handles empty Wasm response from RPC', async () => {
+    const mockGetContractInstance = vi.fn().mockResolvedValue({ executable: { wasmHash: '123' } });
+    const mockGetContractWasmByContractId = vi.fn().mockResolvedValue(null);
+    
+    (rpc.Server as unknown as ReturnType<typeof vi.fn>).mockImplementation(function() { 
+      return {
+        getContractInstance: mockGetContractInstance,
+        getContractWasmByContractId: mockGetContractWasmByContractId,
+      }
+    });
+
+    const contractId = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB';
+    const opts = { rpcUrl: 'http://localhost' };
+
+    const res = await loadSpec(contractId, opts);
+    expect(res.source).toBe('none');
+    expect(res.warnings[0].message).toContain('No Wasm returned');
+  });
+
+  it('handles Wasm response missing wasmBytes', async () => {
+    const mockGetContractInstance = vi.fn().mockResolvedValue({ executable: { wasmHash: '123' } });
+    const mockGetContractWasmByContractId = vi.fn().mockResolvedValue({}); // Missing wasmBytes
+    
+    (rpc.Server as unknown as ReturnType<typeof vi.fn>).mockImplementation(function() { 
+      return {
+        getContractInstance: mockGetContractInstance,
+        getContractWasmByContractId: mockGetContractWasmByContractId,
+      }
+    });
+
+    const contractId = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB';
+    const opts = { rpcUrl: 'http://localhost' };
+
+    const res = await loadSpec(contractId, opts);
+    expect(res.source).toBe('none');
+    expect(res.warnings[0].message).toContain('Wasm response missing wasmBytes');
+  });
+
+  it('handles contractExecutableWasm xdr type correctly', async () => {
+    const mockGetContractInstance = vi.fn().mockResolvedValue({
+        executable: {
+            switch: () => ({ name: 'contractExecutableWasm' }),
+            wasmHash: () => Buffer.from('1234')
+        }
+    });
+    const mockGetContractWasmByContractId = vi.fn().mockResolvedValue(Buffer.alloc(10));
+    
+    (rpc.Server as unknown as ReturnType<typeof vi.fn>).mockImplementation(function() { 
+      return {
+        getContractInstance: mockGetContractInstance,
+        getContractWasmByContractId: mockGetContractWasmByContractId,
+      }
+    });
+
+    const contractId = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC';
+    const opts = { rpcUrl: 'http://localhost' };
+    const res = await loadSpec(contractId, opts);
+    
+    expect(res.source).toBe('wasm');
+  });
+
+  it('LRU cache correctly evicts old items and updates existing items', () => {
+    const lru = _specCache as any;
+    // We mocked its cache map in beforeEach, so let's set it up to test its actual properties
+    const RealLruCache = lru.constructor;
+    const testLru = new RealLruCache(2);
+    
+    // Add two items
+    testLru.set('a', 1);
+    testLru.set('b', 2);
+    expect(testLru.cache.size).toBe(2);
+
+    // Update 'a'
+    testLru.set('a', 10);
+    expect(testLru.get('a')).toBe(10);
+    
+    // Add third item, should evict 'b' since 'a' was recently accessed/updated
+    testLru.set('c', 3);
+    expect(testLru.get('b')).toBeUndefined();
+    expect(testLru.get('a')).toBe(10);
+    expect(testLru.get('c')).toBe(3);
+  });
+
+  it('computes fallback hash if wasmHash is not available', async () => {
+    const mockGetContractInstance = vi.fn().mockResolvedValue({ executable: {} }); // No wasmHash
+    const mockGetContractWasmByContractId = vi.fn().mockResolvedValue(Buffer.alloc(10));
+    
+    (rpc.Server as unknown as ReturnType<typeof vi.fn>).mockImplementation(function() { 
+      return {
+        getContractInstance: mockGetContractInstance,
+        getContractWasmByContractId: mockGetContractWasmByContractId,
+      }
+    });
+
+    const contractId = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC';
+    const opts = { rpcUrl: 'http://localhost' };
+    const res = await loadSpec(contractId, opts);
+    
+    expect(res.source).toBe('wasm');
+  });
 });
