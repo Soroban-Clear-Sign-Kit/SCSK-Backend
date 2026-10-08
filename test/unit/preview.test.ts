@@ -95,4 +95,46 @@ describe('buildPreview', () => {
         expect(res.simulation.status).toBe('success');
         expect(res.summary).toEqual(['All good']);
     });
+
+    it('sets severities for warnings', async () => {
+        vi.mocked(envelope.parseEnvelope).mockReturnValue({
+            success: true,
+            warnings: [],
+            envelope: { source: '', sequence: '', fee: '', operations: [] } as any,
+            innerTransaction: { operations: [{ type: 'invokeHostFunction', func: {} }] } as any
+        });
+
+        // Return a warning to trigger lines 142-144
+        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
+            warnings: [{ code: 'SPEC_UNAVAILABLE', message: 'test' }]
+        });
+        
+        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'unavailable', warnings: [] });
+        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
+        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
+        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+        vi.mocked(summary.generateSummary).mockReturnValue([]);
+        vi.mocked(risk.computeRisk).mockReturnValue('warning');
+
+        const res = await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
+        
+        expect(res.warnings.length).toBe(1);
+        expect(res.warnings[0].severity).toBe('review');
+    });
+
+    it('returns internal error on throw', async () => {
+        vi.mocked(envelope.parseEnvelope).mockImplementation(() => {
+            throw new Error('Something exploded');
+        });
+
+        const res = await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
+        
+        expect(res.risk).toBe('blocked');
+        expect(res.warnings.length).toBe(1);
+        expect(res.warnings[0].code).toBe('INTERNAL_ERROR');
+        expect(res.warnings[0].message).toBe('Something exploded');
+        expect(res.warnings[0].severity).toBe('blocked');
+    });
 });
