@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { decodeScVal } from '../../src/scval';
 import { xdr, Address, Keypair } from '@stellar/stellar-sdk';
 import { MAX_SCVAL_DEPTH, MAX_DISPLAY_STRING } from '../../src/limits';
@@ -187,4 +187,92 @@ describe('decodeScVal', () => {
         expect(res.value.kind).toBe('vec');
         expect((res.value as any).items[1].type).toBe('u64');
     });
+
+    it('decodes UDT Tuple Struct with missing values', () => {
+        const typeDef = { type: 'scSpecTypeUdt', value: { name: () => Buffer.from('MyTuple') } };
+        const spec = {
+            findEntry: (name: string) => ({
+                type: 'scSpecEntryUdtStructV0',
+                value: {
+                    fields: () => [
+                        { name: () => Buffer.from('field1'), type: () => ({ type: 'scSpecTypeU32' }) },
+                        { name: () => Buffer.from('field2'), type: () => ({ type: 'scSpecTypeU32' }) }
+                    ]
+                }
+            })
+        } as any;
+
+        const val = xdr.ScVal.scvVec([xdr.ScVal.scvU32(10)]); // Missing field2
+        const res = decodeScVal(val, spec, typeDef);
+        expect(res.value.kind).toBe('struct');
+        expect((res.value as any).fields[1].value.kind).toBe('void');
+    });
+
+    it('decodes UDT Named Struct with missing entries', () => {
+        const typeDef = { type: 'scSpecTypeUdt', value: { name: () => Buffer.from('MyStruct') } };
+        const spec = {
+            findEntry: (name: string) => ({
+                type: 'scSpecEntryUdtStructV0',
+                value: {
+                    fields: () => [
+                        { name: () => Buffer.from('foo'), type: () => ({ type: 'scSpecTypeU32' }) },
+                        { name: () => Buffer.from('bar'), type: () => ({ type: 'scSpecTypeU32' }) }
+                    ]
+                }
+            })
+        } as any;
+
+        const val = xdr.ScVal.scvMap([
+            new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('foo'), val: xdr.ScVal.scvU32(42) })
+            // Missing bar
+        ]);
+        const res = decodeScVal(val, spec, typeDef);
+        expect(res.value.kind).toBe('struct');
+        expect((res.value as any).fields[1].name).toBe('bar');
+        expect((res.value as any).fields[1].value.kind).toBe('void');
+    });
+
+    it('decodes simple Enum with Symbol', () => {
+        const typeDef = { type: 'scSpecTypeUdt', value: { name: () => Buffer.from('SimpleEnum') } };
+        const spec = {
+            findEntry: (name: string) => ({
+                type: 'scSpecEntryUdtEnumV0',
+                value: {
+                    cases: () => [
+                        { name: () => Buffer.from('Variant1'), type: () => ({ type: 'scSpecTypeU32' }) }
+                    ]
+                }
+            })
+        } as any;
+
+        const val = xdr.ScVal.scvSymbol('Variant1');
+        const res = decodeScVal(val, spec, typeDef);
+        expect(res.value.kind).toBe('enum');
+        expect((res.value as any).variant).toBe('Variant1');
+    });
+
+    it('decodes simple Enum with I32', () => {
+        const typeDef = { type: 'scSpecTypeUdt', value: { name: () => Buffer.from('IntEnum') } };
+        const spec = {
+            findEntry: (name: string) => ({
+                type: 'scSpecEntryUdtEnumV0',
+                value: {
+                    cases: () => [
+                        { name: () => Buffer.from('VariantI32'), value: () => 100 }
+                    ]
+                }
+            })
+        } as any;
+
+        const val = xdr.ScVal.scvI32(100);
+        const res = decodeScVal(val, spec, typeDef);
+        expect(res.value.kind).toBe('enum');
+        expect((res.value as any).variant).toBe('VariantI32');
+
+        const valUnknown = xdr.ScVal.scvI32(999);
+        const resUnknown = decodeScVal(valUnknown, spec, typeDef);
+        expect(resUnknown.value.kind).toBe('enum');
+        expect((resUnknown.value as any).variant).toBe('999');
+    });
+
 });

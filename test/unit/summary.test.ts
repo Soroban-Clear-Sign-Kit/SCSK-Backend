@@ -53,4 +53,53 @@ describe('Summary generation', () => {
         );
         expect(summary).toContain('Call swap on contract CC...');
     });
+
+    it('generates summary for Deploy contract', () => {
+        const summary = generateSummary({ contractId: 'Deploy', functionName: '', args: [], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Deploy contract');
+    });
+
+    it('generates summary for Upload contract code', () => {
+        const summary = generateSummary({ contractId: 'Upload', functionName: '', args: [], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Upload contract code');
+    });
+
+    it('generates summary for balance function', () => {
+        const summary = generateSummary({ contractId: 'C1', functionName: 'balance', args: [{ name: 'id', value: { kind: 'address', value: 'GA1' } }], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Reads the balance of GA1 on token C1');
+    });
+
+    it('generates summary for allowance function', () => {
+        const summary = generateSummary({ contractId: 'C1', functionName: 'allowance', args: [{ name: 'from', value: { kind: 'address', value: 'GA1' } }, { name: 'spender', value: { kind: 'address', value: 'GA2' } }], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Reads the allowance from GA1 for spender GA2 on token C1');
+    });
+
+    it('generates summary for decimals function', () => {
+        const summary = generateSummary({ contractId: 'C1', functionName: 'decimals', args: [], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Reads the decimals of token C1');
+    });
+
+    it('generates summary for name function', () => {
+        const summary = generateSummary({ contractId: 'C1', functionName: 'name', args: [], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Reads the name of token C1');
+    });
+
+    it('generates summary for symbol function', () => {
+        const summary = generateSummary({ contractId: 'C1', functionName: 'symbol', args: [], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        expect(summary).toContain('Reads the symbol of token C1');
+    });
+
+    it('includes positive token effects (receive)', () => {
+        const summary = generateSummary(undefined, [], [
+            {
+                tokenContractId: 'CB...',
+                account: 'GA...',
+                delta: '50.00',
+                symbol: 'USDC',
+                decimals: 7,
+                formatted: '50.00'
+            }
+        ], { status: 'success', warnings: [] }, 'GA...');
+        expect(summary).toContain('You receive 50.00 USDC');
+    });
 });

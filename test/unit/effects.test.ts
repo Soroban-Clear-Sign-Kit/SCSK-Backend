@@ -175,4 +175,56 @@ describe('extractTokenEffects', () => {
         expect(res.effects.length).toBe(0);
         expect(res.warnings).toContainEqual(expect.objectContaining({ code: 'EVENT_SHAPE_UNKNOWN' }));
     });
+
+    it('returns null for non-address extractAddress', () => {
+        const topics = [
+            xdr.ScVal.scvSymbol('mint'),
+            xdr.ScVal.scvVoid() // not an address
+        ];
+        const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 50n }));
+        const events = [
+            new xdr.DiagnosticEvent({
+                inSuccessfulContractCall: true,
+                event: new xdr.ContractEvent({
+                    ext: xdr.ExtensionPoint.v0(),
+                    contractId: contractId,
+                    type: xdr.ContractEventType.contract,
+                    body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
+                })
+            })
+        ];
+        const res = extractTokenEffects(events);
+        expect(res.effects.length).toBe(0);
+    });
+
+    it('handles map amount shape without amount key', () => {
+        const topics = [
+            xdr.ScVal.scvSymbol('mint'),
+            xdr.ScVal.scvAddress(xdr.ScAddress.scAddressTypeAccount(xdr.PublicKey.publicKeyTypeEd25519(to)))
+        ];
+        const data = xdr.ScVal.scvMap([
+            new xdr.ScMapEntry({
+                key: xdr.ScVal.scvSymbol('other'),
+                val: xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 50n }))
+            }),
+            new xdr.ScMapEntry({
+                key: xdr.ScVal.scvU32(1), // not a symbol
+                val: xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 50n }))
+            })
+        ]);
+        const events = [
+            new xdr.DiagnosticEvent({
+                inSuccessfulContractCall: true,
+                event: new xdr.ContractEvent({
+                    ext: xdr.ExtensionPoint.v0(),
+                    contractId: contractId,
+                    type: xdr.ContractEventType.contract,
+                    body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
+                })
+            })
+        ];
+        const res = extractTokenEffects(events);
+        expect(res.effects.length).toBe(0);
+        expect(res.warnings).toContainEqual(expect.objectContaining({ code: 'EVENT_SHAPE_UNKNOWN' }));
+    });
 });
