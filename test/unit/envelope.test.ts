@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseEnvelope } from '../../src/envelope.js';
 import { TransactionBuilder, Networks, Keypair, Operation, Memo, Account, Asset, xdr, MuxedAccount, Address } from '@stellar/stellar-sdk';
 
@@ -119,6 +119,49 @@ describe('parseEnvelope', () => {
     for (let i = 0; i < 500; i++) {
       const randomStr = Math.random().toString(36).substring(2) + '===';
       expect(() => parseEnvelope(randomStr)).not.toThrow();
+    }
+  });
+
+  it('ignores invalid Muxed source account gracefully', () => {
+    // This base64 XDR contains a MuxedAccount source
+    const mSourceBase64 = 'AAAAAgAAAQAAAAAAAAAE0tsTvR/C/xyPPIEIjE4mPWcB+Q9YhYoWEfRmP/ZOuVY+AAAAZAAAAAAAAAACAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAANsTvR/C/xyPPIEIjE4mPWcB+Q9YhYoWEfRmP/ZOuVY+AAAAAAAAAAAF9eEAAAAAAAAAAAA=';
+    
+    // We mock MuxedAccount.fromAddress to throw an error, simulating a parse failure
+    const spy = vi.spyOn(MuxedAccount, 'fromAddress').mockImplementation(() => {
+      throw new Error('Invalid address');
+    });
+
+    const res = parseEnvelope(mSourceBase64, Networks.TESTNET);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      // It will just keep the original raw source string instead of appending the G-address
+      expect(res.envelope.source.startsWith('M')).toBe(true);
+      expect(res.envelope.source).not.toContain('(');
+    }
+    
+    spy.mockRestore();
+  });
+
+  it('parses text, id, hash, and return memos correctly', () => {
+    const memoTypes = [
+      Memo.text('hello'),
+      Memo.id('12345'),
+      Memo.hash('0000000000000000000000000000000000000000000000000000000000000000'),
+      Memo.return('0000000000000000000000000000000000000000000000000000000000000000')
+    ];
+
+    for (const m of memoTypes) {
+      const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+        .addOperation(Operation.payment({ destination: source.publicKey(), asset: Asset.native(), amount: '10' }))
+        .addMemo(m)
+        .setTimeout(0)
+        .build();
+      const res = parseEnvelope(tx.toXDR(), Networks.TESTNET);
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.envelope.memo).toBeDefined();
+        expect(res.envelope.memo?.type).toBe(m.type);
+      }
     }
   });
 });
