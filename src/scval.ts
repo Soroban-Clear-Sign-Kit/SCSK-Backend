@@ -11,7 +11,7 @@ export function decodeScVal(
 ): { value: DisplayValue; warnings: { code: WarningCode; message: string }[] } {
   const warnings: { code: WarningCode; message: string }[] = [];
 
-  const scValType = scVal.type;
+  const scValType = typeof scVal.switch === 'function' ? scVal.switch().name : scVal.type;
   
   if (depth > MAX_SCVAL_DEPTH) {
     warnings.push({ code: 'VALUE_TOO_DEEP', message: 'Maximum recursion depth exceeded' });
@@ -57,9 +57,14 @@ export function decodeScVal(
           for (const f of fields) {
             const name = typeof f.name === 'function' ? f.name().toString('utf8') : (f.name ? f.name.toString('utf8') : '');
             const fType = typeof f.type === 'function' ? f.type() : f.type;
-            const mapEntry = map.find((e: any) => e.key().sym().toString('utf8') === name);
+            const mapEntry = map.find((e: any) => {
+              const k = typeof e.key === 'function' ? e.key() : e.key;
+              const sym = typeof k.sym === 'function' ? k.sym() : k.value;
+              return sym.toString('utf8') === name;
+            });
             if (mapEntry) {
-              const res = decodeScVal(mapEntry.val(), spec, fType, depth + 1);
+              const v = typeof mapEntry.val === 'function' ? mapEntry.val() : mapEntry.val;
+              const res = decodeScVal(v, spec, fType, depth + 1);
               warnings.push(...res.warnings);
               structFields.push({ name, value: res.value });
             } else {
@@ -185,8 +190,10 @@ export function decodeScVal(
         const valDef = typeDefType === 'scSpecTypeMap' ? (typeof typeDef.value.valueType === 'function' ? typeDef.value.valueType() : typeDef.value.valueType) : null;
         
         for (const e of entries) {
-          const kRes = decodeScVal(e.key(), spec, keyDef, depth + 1);
-          const vRes = decodeScVal(e.val(), spec, valDef, depth + 1);
+          const k = typeof e.key === 'function' ? e.key() : e.key;
+          const v = typeof e.val === 'function' ? e.val() : e.val;
+          const kRes = decodeScVal(k, spec, keyDef, depth + 1);
+          const vRes = decodeScVal(v, spec, valDef, depth + 1);
           warnings.push(...kRes.warnings, ...vRes.warnings);
           decodedEntries.push({ key: kRes.value, value: vRes.value });
         }

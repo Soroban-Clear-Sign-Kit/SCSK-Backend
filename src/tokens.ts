@@ -95,8 +95,9 @@ async function readContractNumber(server: rpc.Server, opts: TokenMetadataOptions
   const response = await Promise.race([simulatePromise, timeoutPromise]);
   if (rpc.Api.isSimulationSuccess(response) && response.result && response.result.retval) {
     const val: any = response.result.retval;
-    if (val.switch().name === 'scvU32') {
-      return val.u32();
+    const valType = typeof val.switch === 'function' ? val.switch().name : val.type;
+    if (valType === 'scvU32') {
+      return typeof val.u32 === 'function' ? val.u32() : val.u32;
     }
   }
   return null;
@@ -117,10 +118,13 @@ async function readContractString(server: rpc.Server, opts: TokenMetadataOptions
   const response = await Promise.race([simulatePromise, timeoutPromise]);
   if (rpc.Api.isSimulationSuccess(response) && response.result && response.result.retval) {
     const val: any = response.result.retval;
-    if (val.switch().name === 'scvString') {
-      return val.str().toString('utf8');
-    } else if (val.switch().name === 'scvSymbol') {
-      return val.sym().toString();
+    const valType = typeof val.switch === 'function' ? val.switch().name : val.type;
+    if (valType === 'scvString') {
+      const v = typeof val.str === 'function' ? val.str() : val.str;
+      return typeof v === 'string' ? v : v.toString('utf8');
+    } else if (valType === 'scvSymbol') {
+      const v = typeof val.sym === 'function' ? val.sym() : val.sym;
+      return typeof v === 'string' ? v : v.toString();
     }
   }
   return null;
