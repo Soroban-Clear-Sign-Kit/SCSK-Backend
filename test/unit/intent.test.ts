@@ -102,4 +102,34 @@ describe('intent verification', () => {
     const { warnings } = verifyIntent(intent, defaultInvocation, auth, [], 'G123');
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'INTENT_UNEXPECTED_AUTH' }));
   });
+
+  it('fails on argument value mismatch', () => {
+    const intent: Intent = {
+      contractId: 'C123',
+      functionName: 'transfer',
+      args: { to: 'G456', amount: '200' } // mismatch here, expected 200, invocation has 100
+    };
+    const { warnings } = verifyIntent(intent, defaultInvocation, [], [], 'G123');
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'INTENT_MISMATCH', path: 'args.amount' }));
+  });
+
+  it('normalizes non-string intent arguments', () => {
+    const inv: Invocation = {
+      contractId: 'C123',
+      functionName: 'transfer',
+      specSource: 'wasm',
+      args: [
+        { name: 'amount', typeName: 'i128', value: { kind: 'int', type: 'i128', value: '100' } },
+        { name: 'flag', typeName: 'bool', value: { kind: 'bool', value: true } }
+      ]
+    };
+    const intent: Intent = {
+      contractId: 'C123',
+      functionName: 'transfer',
+      // passing non-string values directly to cover `String(val)` in normalize
+      args: { amount: 100 as any, flag: true as any }
+    };
+    const { warnings } = verifyIntent(intent, inv, [], [], 'G123');
+    expect(warnings).toEqual([]);
+  });
 });
