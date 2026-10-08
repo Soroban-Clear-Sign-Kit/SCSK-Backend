@@ -125,6 +125,7 @@ export async function decodeInvocation(
     let deployer = 'Unknown';
     let salt = '';
     let executable = '';
+    let constructorArgsDecoded: any[] = [];
     
     if (funcSwitch === 'hostFunctionTypeCreateContract') {
        const createArgs = func.value;
@@ -142,30 +143,50 @@ export async function decodeInvocation(
        }
     } else {
        // hostFunctionTypeCreateContractV2
-       const createArgs = func.value;
-       if (createArgs.contractIdPreimage.type === 'contractIdPreimageFromAddress') {
-          const preImg = createArgs.contractIdPreimage.value;
-          deployer = Address.fromScAddress(preImg.address).toString();
-          const rawSalt = (preImg.salt as any)?.value ?? preImg.salt;
-          salt = Buffer.from(rawSalt as any).toString('hex');
+       const createArgs = typeof func.createContractV2 === 'function' ? func.createContractV2() : (func.value || func._attributes);
+       const preimage = typeof createArgs.contractIdPreimage === 'function' ? createArgs.contractIdPreimage() : createArgs.contractIdPreimage;
+       if (preimage && typeof preimage.switch === 'function' ? preimage.switch().name === 'contractIdPreimageFromAddress' : preimage.type === 'contractIdPreimageFromAddress') {
+          const preImg = typeof preimage.value === 'function' ? preimage.value() : preimage.value;
+          const addressVal = typeof preImg.address === 'function' ? preImg.address() : preImg.address;
+          deployer = Address.fromScAddress(addressVal).toString();
+          const rawSalt = typeof preImg.salt === 'function' ? preImg.salt() : preImg.salt;
+          salt = Buffer.from(rawSalt).toString('hex');
        }
-       if (createArgs.executable.type === 'contractExecutableWasm') {
-          const rawWasm = (createArgs.executable.value as any)?.value ?? createArgs.executable.value;
-          executable = Buffer.from(rawWasm as any).toString('hex');
-       } else if (createArgs.executable.type === 'contractExecutableStellarAsset') {
+       const exec = typeof createArgs.executable === 'function' ? createArgs.executable() : createArgs.executable;
+       if (exec && typeof exec.switch === 'function' ? exec.switch().name === 'contractExecutableWasm' : exec.type === 'contractExecutableWasm') {
+          const rawWasm = typeof exec.wasmId === 'function' ? exec.wasmId() : (exec.value || exec.wasmId);
+          executable = Buffer.from(rawWasm).toString('hex');
+       } else if (exec && typeof exec.switch === 'function' ? exec.switch().name === 'contractExecutableStellarAsset' : exec.type === 'contractExecutableStellarAsset') {
           executable = 'Stellar Asset';
        }
+
+       const cArgs = typeof createArgs.constructorArgs === 'function' ? createArgs.constructorArgs() : (createArgs.constructorArgs || []);
+       for (const arg of cArgs) {
+         const res = decodeScVal(arg, null, null);
+         warnings.push(...res.warnings);
+         constructorArgsDecoded.push({ name: null, typeName: null, value: res.value });
+       }
+    }
+
+    const baseArgs = [
+      { name: 'deployer', typeName: 'address', value: { kind: 'address', value: deployer, addressType: 'account' } as any },
+      { name: 'salt', typeName: 'bytes', value: { kind: 'bytes', hex: salt, length: salt.length / 2, truncated: false } as any },
+      { name: 'executable', typeName: 'string', value: { kind: 'string', value: executable, sanitized: false, truncated: false } as any }
+    ];
+
+    if (funcSwitch === 'hostFunctionTypeCreateContractV2') {
+      baseArgs.push({
+        name: 'constructorArgs',
+        typeName: 'vec',
+        value: { kind: 'vec', values: constructorArgsDecoded.map(a => a.value) } as any
+      });
     }
 
     return {
       invocation: {
         contractId: 'Deploy',
         functionName: 'Deploy contract',
-        args: [
-          { name: 'deployer', typeName: 'address', value: { kind: 'address', value: deployer, addressType: 'account' } },
-          { name: 'salt', typeName: 'bytes', value: { kind: 'bytes', hex: salt, length: salt.length / 2, truncated: false } },
-          { name: 'executable', typeName: 'string', value: { kind: 'string', value: executable, sanitized: false, truncated: false } }
-        ],
+        args: baseArgs,
         specSource: 'none',
       },
       warnings
