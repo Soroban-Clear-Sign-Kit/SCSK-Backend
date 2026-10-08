@@ -134,6 +134,53 @@ describe('simulateTransaction', () => {
         isSimulationSuccessMock.mockRestore();
     });
 
+    describe('feeWarningMultiplier', () => {
+        const simulateWithFee = async (fee: string, feeWarningMultiplier?: number) => {
+            const tx = new TransactionBuilder(account, { fee, networkPassphrase: Networks.TESTNET })
+                .addOperation(Operation.payment({ destination: account.accountId(), asset: Asset.native(), amount: '10' }))
+                .setTimeout(10)
+                .build();
+            (tx as any)._mockSim = { minResourceFee: '100', latestLedger: 100, events: [] };
+
+            const spies = [
+                vi.spyOn(rpc.Api, 'isSimulationError').mockReturnValue(false),
+                vi.spyOn(rpc.Api, 'isSimulationRestore').mockReturnValue(false),
+                vi.spyOn(rpc.Api, 'isSimulationSuccess').mockReturnValue(true),
+            ];
+            try {
+                const opts = feeWarningMultiplier === undefined
+                    ? { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET }
+                    : { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET, feeWarningMultiplier };
+                return await simulateTransaction(tx, opts);
+            } finally {
+                spies.forEach(s => s.mockRestore());
+            }
+        };
+        const hasFeeWarning = (sim: { warnings: { code: string }[] }) => sim.warnings.some(w => w.code === 'FEE_UNUSUALLY_HIGH');
+
+        it('supports fractional multipliers without throwing', async () => {
+            const over = await simulateWithFee('151', 1.5);
+            expect(over.status).toBe('success');
+            expect(hasFeeWarning(over)).toBe(true);
+
+            const atLimit = await simulateWithFee('150', 1.5);
+            expect(atLimit.status).toBe('success');
+            expect(hasFeeWarning(atLimit)).toBe(false);
+        });
+
+        it('falls back to the default multiplier for invalid values', async () => {
+            for (const invalid of [0, -2, Number.NaN, Number.POSITIVE_INFINITY]) {
+                expect(hasFeeWarning(await simulateWithFee('1000', invalid))).toBe(false);
+                expect(hasFeeWarning(await simulateWithFee('1001', invalid))).toBe(true);
+            }
+        });
+
+        it('uses the default multiplier when none is provided', async () => {
+            expect(hasFeeWarning(await simulateWithFee('1000'))).toBe(false);
+            expect(hasFeeWarning(await simulateWithFee('1001'))).toBe(true);
+        });
+    });
+
     it('handles fee bump transactions', async () => {
         const inner = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
             .addOperation(Operation.payment({ destination: account.accountId(), asset: Asset.native(), amount: '10' }))

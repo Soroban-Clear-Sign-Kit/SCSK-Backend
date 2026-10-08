@@ -4,3 +4,4 @@ export const MAX_AUTH_NODES = 256;
 export const MAX_SCVAL_DEPTH = 32;
 export const MAX_DISPLAY_STRING = 512;
 export const RPC_TIMEOUT_MS = 10000;
+export const DEFAULT_FEE_WARNING_MULTIPLIER = 10;

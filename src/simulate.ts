@@ -1,7 +1,7 @@
 import { rpc, Transaction, FeeBumpTransaction, xdr, Address } from '@stellar/stellar-sdk';
 import { WarningCode } from './errors.js';
 import { DisplayValue } from './types.js';
-import { RPC_TIMEOUT_MS } from './limits.js';
+import { RPC_TIMEOUT_MS, DEFAULT_FEE_WARNING_MULTIPLIER } from './limits.js';
 import { loadSpec, SpecLoaderOptions, SAC_FUNCTIONS } from './spec.js';
 import { decodeScVal } from './scval.js';
 
@@ -106,12 +106,15 @@ export async function simulateTransaction(
        returnValue = res.value;
     }
 
-    const declaredFeeStr = tx.fee;
-    const declaredFee = BigInt(declaredFeeStr);
+    const declaredFee = BigInt(tx.fee);
     const simFee = BigInt(minResourceFee || '0');
-    const multiplier = BigInt(opts.feeWarningMultiplier ?? 10);
-    
-    if (declaredFee > simFee * multiplier) {
+    const requested = opts.feeWarningMultiplier;
+    const multiplier =
+      requested !== undefined && Number.isFinite(requested) && requested > 0 ? requested : DEFAULT_FEE_WARNING_MULTIPLIER;
+    // Compare in hundredths so fractional multipliers (e.g. 1.5) work with BigInt math.
+    const multiplierHundredths = BigInt(Math.round(multiplier * 100));
+
+    if (declaredFee * 100n > simFee * multiplierHundredths) {
       warnings.push({ code: 'FEE_UNUSUALLY_HIGH', message: 'Declared fee is unusually high compared to simulated fee' });
     }
 
