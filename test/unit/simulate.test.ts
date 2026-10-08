@@ -170,4 +170,43 @@ describe('simulateTransaction', () => {
         isSimulationRestoreMock.mockRestore();
         isSimulationSuccessMock.mockRestore();
     });
+
+    it('parses retval for sac-builtin functions', async () => {
+        const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+            .addOperation(Operation.invokeHostFunction({
+                func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+                    new xdr.InvokeContractArgs({
+                        contractAddress: Address.contract(Buffer.alloc(32)).toScAddress(),
+                        functionName: 'balance', // sac-builtin function
+                        args: []
+                    })
+                ),
+                auth: []
+            }))
+            .setTimeout(10)
+            .build();
+
+        (tx as any)._mockSim = {
+            minResourceFee: '10',
+            latestLedger: 100,
+            events: [],
+            result: {
+                retval: xdr.ScVal.scvI128(new xdr.Int128Parts({ lo: xdr.Uint64.fromString("100"), hi: xdr.Int64.fromString("0") }))
+            }
+        };
+
+        const isSimulationErrorMock = vi.spyOn(rpc.Api, 'isSimulationError').mockReturnValue(false);
+        const isSimulationRestoreMock = vi.spyOn(rpc.Api, 'isSimulationRestore').mockReturnValue(false);
+        const isSimulationSuccessMock = vi.spyOn(rpc.Api, 'isSimulationSuccess').mockReturnValue(true);
+        
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'sac-builtin', warnings: [] });
+
+        const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
+        expect(sim.status).toBe('success');
+        expect(sim.returnValue).toEqual({ kind: 'int', type: 'i128', value: '100' });
+        
+        isSimulationErrorMock.mockRestore();
+        isSimulationRestoreMock.mockRestore();
+        isSimulationSuccessMock.mockRestore();
+    });
 });

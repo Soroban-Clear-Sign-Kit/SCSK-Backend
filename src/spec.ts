@@ -155,7 +155,7 @@ export async function loadSpec(
 
 // Built-in SEP-41 SAC spec fallback
 // We use a predefined table for SAC operations.
-export const SAC_FUNCTIONS: Record<string, { args: { name: string, type: string }[] }> = {
+export const SAC_FUNCTIONS: Record<string, { args: { name: string, type: string }[], outputs?: { type: string }[] }> = {
   transfer: { args: [{ name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'amount', type: 'i128' }] },
   transfer_from: { args: [{ name: 'spender', type: 'address' }, { name: 'from', type: 'address' }, { name: 'to', type: 'address' }, { name: 'amount', type: 'i128' }] },
   approve: { args: [{ name: 'from', type: 'address' }, { name: 'spender', type: 'address' }, { name: 'amount', type: 'i128' }, { name: 'expiration_ledger', type: 'u32' }] },
@@ -165,9 +165,9 @@ export const SAC_FUNCTIONS: Record<string, { args: { name: string, type: string 
   clawback: { args: [{ name: 'from', type: 'address' }, { name: 'amount', type: 'i128' }] },
   set_admin: { args: [{ name: 'new_admin', type: 'address' }] },
   set_authorized: { args: [{ name: 'id', type: 'address' }, { name: 'authorize', type: 'bool' }] },
-  balance: { args: [{ name: 'id', type: 'address' }] },
-  allowance: { args: [{ name: 'from', type: 'address' }, { name: 'spender', type: 'address' }] },
-  decimals: { args: [] },
-  name: { args: [] },
-  symbol: { args: [] },
+  balance: { args: [{ name: 'id', type: 'address' }], outputs: [{ type: 'scSpecTypeI128' }] },
+  allowance: { args: [{ name: 'from', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'scSpecTypeI128' }] },
+  decimals: { args: [], outputs: [{ type: 'scSpecTypeU32' }] },
+  name: { args: [], outputs: [{ type: 'scSpecTypeString' }] },
+  symbol: { args: [], outputs: [{ type: 'scSpecTypeString' }] },
 };
