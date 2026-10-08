@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { simulateTransaction } from '../../src/simulate';
 import { TransactionBuilder, Networks, rpc, Account, Keypair, xdr, Operation, Asset, FeeBumpTransaction, Address } from '@stellar/stellar-sdk';
 import * as spec from '../../src/spec';
+import { RPC_TIMEOUT_MS } from '../../src/limits';
 
 vi.mock('../../src/spec', async (importOriginal) => {
     const actual: any = await importOriginal();
@@ -44,6 +45,40 @@ describe('simulateTransaction', () => {
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
         expect(sim.status).toBe('unavailable');
         expect(sim.warnings[0].code).toBe('SIMULATION_UNAVAILABLE');
+    });
+
+    it('returns unavailable when the RPC call exceeds the timeout', async () => {
+        vi.useFakeTimers();
+        try {
+            const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+                .setTimeout(10)
+                .build();
+            (tx as any)._timeout = true;
+
+            const pending = simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
+            await vi.advanceTimersByTimeAsync(RPC_TIMEOUT_MS);
+            const sim = await pending;
+
+            expect(sim.status).toBe('unavailable');
+            expect(sim.warnings[0]?.message).toBe('RPC Timeout');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('clears the timeout timer once the RPC call settles', async () => {
+        vi.useFakeTimers();
+        try {
+            const tx = new TransactionBuilder(account, { fee: '100', networkPassphrase: Networks.TESTNET })
+                .setTimeout(10)
+                .build();
+            (tx as any)._throw = true;
+
+            await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('returns failed on simulation error', async () => {

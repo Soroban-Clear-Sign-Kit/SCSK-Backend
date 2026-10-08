@@ -31,15 +31,18 @@ export async function simulateTransaction(
   let response: rpc.Api.SimulateTransactionResponse;
   const server = new rpc.Server(opts.rpcUrl, { allowHttp: opts.rpcUrl.startsWith('http://') });
 
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   try {
     const simulatePromise = server.simulateTransaction(innerTx);
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('RPC Timeout')), RPC_TIMEOUT_MS)
-    );
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => reject(new Error('RPC Timeout')), RPC_TIMEOUT_MS);
+    });
     response = await Promise.race([simulatePromise, timeoutPromise]);
   } catch (err: any) {
     warnings.push({ code: 'SIMULATION_UNAVAILABLE', message: err.message || 'RPC unreachable or timed out' });
     return { status: 'unavailable', warnings };
+  } finally {
+    clearTimeout(timeoutHandle);
   }
 
   if (rpc.Api.isSimulationError(response)) {
