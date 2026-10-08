@@ -11,6 +11,7 @@ import { verifyIntent } from './intent.js';
 import { computeRisk } from './risk.js';
 import { sanitizeRecursive } from './sanitize.js';
 import { generateSummary } from './summary.js';
+import { LocaleStrings } from './locales/en.js';
 
 export interface BuildPreviewInput {
   xdr: string;
@@ -24,6 +25,7 @@ export interface BuildPreviewInput {
     feeWarningMultiplier?: number;
     rpcTimeoutMs?: number;
     debug?: boolean;
+    localeStrings?: LocaleStrings;
   };
 }
 
@@ -134,7 +136,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress);
      addWarning(intentResult.warnings);
 
-     const summary = generateSummary(invocation, auth, effects, simulation, input.signerAddress);
+     const summary = generateSummary(invocation, auth, effects, simulation, input.signerAddress, input.options?.localeStrings);
 
      // Fix severities
      for (const w of warnings) {

@@ -1,33 +1,38 @@
 import { Invocation, AuthEntry, BalanceDelta } from './types.js';
 import { SimulationResult } from './simulate.js';
+import { en, LocaleStrings } from './locales/en.js';
+
 export function generateSummary(
   invocation: Invocation | undefined,
   auth: AuthEntry[],
   effects: BalanceDelta[],
   simulation: SimulationResult,
-  signerAddress?: string
+  signerAddress?: string,
+  locales: LocaleStrings = en
 ): string[] {
   const summary: string[] = [];
 
   if (invocation) {
     if (invocation.contractId === 'Deploy') {
-       summary.push('Deploy contract');
+       summary.push(locales.deployContract);
     } else if (invocation.contractId === 'Upload') {
-       summary.push('Upload contract code');
+       summary.push(locales.uploadContractCode);
     } else {
        const fn = invocation.functionName;
-       if (fn === 'balance' && invocation.args.length > 0 && invocation.args[0].value.kind === 'address') {
-         summary.push(`Reads the balance of ${invocation.args[0].value.value} on token ${invocation.contractId}`);
-       } else if (fn === 'allowance' && invocation.args.length > 1 && invocation.args[0].value.kind === 'address' && invocation.args[1].value.kind === 'address') {
-         summary.push(`Reads the allowance from ${invocation.args[0].value.value} for spender ${invocation.args[1].value.value} on token ${invocation.contractId}`);
+       const arg0 = invocation.args[0];
+       const arg1 = invocation.args[1];
+       if (fn === 'balance' && arg0 && arg0.value.kind === 'address') {
+         summary.push(locales.readsBalance(arg0.value.value, invocation.contractId));
+       } else if (fn === 'allowance' && arg0 && arg1 && arg0.value.kind === 'address' && arg1.value.kind === 'address') {
+         summary.push(locales.readsAllowance(arg0.value.value, arg1.value.value, invocation.contractId));
        } else if (fn === 'decimals') {
-         summary.push(`Reads the decimals of token ${invocation.contractId}`);
+         summary.push(locales.readsDecimals(invocation.contractId));
        } else if (fn === 'name') {
-         summary.push(`Reads the name of token ${invocation.contractId}`);
+         summary.push(locales.readsName(invocation.contractId));
        } else if (fn === 'symbol') {
-         summary.push(`Reads the symbol of token ${invocation.contractId}`);
+         summary.push(locales.readsSymbol(invocation.contractId));
        } else {
-         summary.push(`Call ${fn} on contract ${invocation.contractId}`);
+         summary.push(locales.callFunction(fn, invocation.contractId));
        }
     }
   }
@@ -40,9 +45,9 @@ export function generateSummary(
          const symbol = effect.symbol || effect.tokenContractId;
          
          if (isNegative) {
-            summary.push(`You spend ${amount} ${symbol}`);
+            summary.push(locales.spendToken(amount, symbol));
          } else {
-            summary.push(`You receive ${amount} ${symbol}`);
+            summary.push(locales.receiveToken(amount, symbol));
          }
       }
     }
@@ -64,14 +69,14 @@ export function generateSummary(
     }
     
     if (callCount > 0) {
-      summary.push(`You authorize ${callCount} call${callCount === 1 ? '' : 's'} across ${contractSet.size} contract${contractSet.size === 1 ? '' : 's'}`);
+      summary.push(locales.authorizeCalls(callCount, contractSet.size));
     }
   }
 
   if (simulation.status === 'failed') {
-    summary.push(`Simulation failed: ${simulation.error || 'Unknown error'}`);
+    summary.push(locales.simulationFailed(simulation.error || 'Unknown error'));
   } else if (simulation.status === 'unavailable') {
-    summary.push('Simulation unavailable');
+    summary.push(locales.simulationUnavailable);
   }
 
   return summary;
