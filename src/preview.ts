@@ -112,7 +112,8 @@ export async function buildPreview(
     }
 
     const innerTx = envResult.innerTransaction;
-    const tx = innerTx; // For `simulateTransaction` which accepts Transaction or FeeBumpTransaction, wait simulateTransaction accepts FeeBumpTransaction directly? Yes but actually innerTx is enough to simulate. Wait, if it's a fee bump, simulateTransaction accepts fee bump but innerTransaction is passed. `simulateTransaction` handles it.
+    // Simulation runs on the inner transaction; any fee-bump wrapper is already unwrapped by parseEnvelope.
+    const tx = innerTx;
 
     let invocation: Invocation | undefined;
     const op = innerTx.operations[0];
@@ -246,7 +247,7 @@ export async function buildPreview(
       warnings: warnings.map((w) => ({
         ...w,
         severity: w.severity || "blocked",
-      })), // wait, dynamic import is async... I should import statically
+      })),
       network: {
         passphrase: input.networkPassphrase,
         verified:
