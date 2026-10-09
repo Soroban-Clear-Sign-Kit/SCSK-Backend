@@ -43,6 +43,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
   try {
      const server = new rpc.Server(input.rpcUrl, { allowHttp: input.rpcUrl.startsWith('http://') });
      let rpcNetwork: rpc.Api.GetNetworkResponse;
+     let networkVerified = false;
      try {
        rpcNetwork = await server.getNetwork();
        if (rpcNetwork.passphrase && rpcNetwork.passphrase !== input.networkPassphrase) {
@@ -59,6 +60,8 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
              summary: [],
              raw: { xdr: input.xdr }
           };
+       } else {
+          networkVerified = true;
        }
      } catch(e) {
        // ignore if getNetwork fails, rely on simulation
@@ -194,7 +197,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         version: 1 as const,
         risk,
         warnings: warnings.map(w => ({ ...w, severity: w.severity || 'blocked' })), // wait, dynamic import is async... I should import statically
-        network: { passphrase: input.networkPassphrase, verified: envResult.warnings.every(w => w.code !== 'NETWORK_MISMATCH') },
+        network: { passphrase: input.networkPassphrase, verified: networkVerified && envResult.warnings.every(w => w.code !== 'NETWORK_MISMATCH') },
         envelope: {
            source: tx.source,
            sequence: tx.sequence,
