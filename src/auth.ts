@@ -82,6 +82,7 @@ export async function decodeAuthEntries(
       let functionName: string | undefined;
       let args: DecodedArg[] | undefined;
       let details: Record<string, string> | undefined;
+      let skipChildren = false;
 
       if (funcType === 'sorobanAuthorizedFunctionTypeContractFn') {
         const contractFn = typeof func.contractFn === 'function' ? func.contractFn() : func.contractFn;
@@ -99,8 +100,15 @@ export async function decodeAuthEntries(
         const specResult = await loadSpec(contractId, opts);
         warnings.push(...specResult.warnings);
 
-        if (!specResult.spec && specResult.source === 'none') {
-           warnings.push({ code: 'AUTH_UNKNOWN_CONTRACT', message: `No spec found for auth contract ${contractId}` });
+        const isTopLevel = opts.topLevelContractId && contractId === opts.topLevelContractId;
+        const noSpec = !specResult.spec && specResult.source === 'none';
+
+        if (noSpec) {
+           if (!isTopLevel) {
+              warnings.push({ code: 'AUTH_UNKNOWN_CONTRACT', message: `No spec found for auth contract ${contractId}` });
+           } else {
+              skipChildren = true;
+           }
         }
 
         let decodedArgs: DecodedArg[] = [];
@@ -137,10 +145,12 @@ export async function decodeAuthEntries(
         details = {};
       }
 
-      const subInvs = typeof inv.subInvocations === 'function' ? inv.subInvocations() : inv.subInvocations;
       const children: AuthNode[] = [];
-      for (const sub of (subInvs || [])) {
-        children.push(await walkInvocation(sub, depth + 1));
+      if (!skipChildren) {
+         const subInvs = typeof inv.subInvocations === 'function' ? inv.subInvocations() : inv.subInvocations;
+         for (const sub of (subInvs || [])) {
+           children.push(await walkInvocation(sub, depth + 1));
+         }
       }
 
       const node: any = {

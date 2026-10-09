@@ -38,8 +38,8 @@ export function sanitizeRecursive(obj: any): any {
   if (obj !== null && typeof obj === 'object') {
     const res: any = {};
     for (const key of Object.keys(obj)) {
-      if (key === 'hex') {
-         res[key] = obj[key]; // Do not sanitize hex strings
+      if (key === 'hex' || key === 'xdr') {
+         res[key] = obj[key]; // Do not sanitize hex strings or raw xdr
       } else {
          res[key] = sanitizeRecursive(obj[key]);
       }

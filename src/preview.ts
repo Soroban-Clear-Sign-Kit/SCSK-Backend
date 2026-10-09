@@ -42,6 +42,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
 
   try {
      const server = new rpc.Server(input.rpcUrl, { allowHttp: input.rpcUrl.startsWith('http://') });
+     let networkVerified = false;
      let rpcNetwork: rpc.Api.GetNetworkResponse;
      try {
        rpcNetwork = await server.getNetwork();
@@ -59,6 +60,8 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
              summary: [],
              raw: { xdr: input.xdr }
           };
+       } else if (rpcNetwork.passphrase === input.networkPassphrase) {
+          networkVerified = true;
        }
      } catch(e) {
        // ignore if getNetwork fails, rely on simulation
@@ -155,13 +158,14 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      }
 
      // Auth
-     let authXdr = simulation.auth || [];
-     if (authXdr.length === 0) {
-        for (const op of innerTx.operations) {
-           if (op.type === 'invokeHostFunction' && (op as any).auth) {
-               authXdr = authXdr.concat((op as any).auth);
-           }
+     let authXdr: any[] = [];
+     for (const op of innerTx.operations) {
+        if (op.type === 'invokeHostFunction' && (op as any).auth) {
+            authXdr = authXdr.concat((op as any).auth);
         }
+     }
+     if (authXdr.length === 0 && simulation.auth) {
+        authXdr = simulation.auth;
      }
      const authOpts: any = {
         rpcUrl: input.rpcUrl,
@@ -178,7 +182,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      addWarning(authResult.warnings);
 
      // Intent
-     const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress);
+     const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress, tx.source);
      addWarning(intentResult.warnings);
 
      const summary = generateSummary(invocation, auth, effects, simulation, input.signerAddress, input.options?.localeStrings);
@@ -188,18 +192,24 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         w.severity = WARNING_SEVERITY[w.code];
      }
 
-     const risk = computeRisk(warnings);
+     const hasIntentMismatch = intentResult.warnings.some(w => w.code === 'INTENT_MISMATCH' || w.code === 'INTENT_UNVERIFIABLE' || w.code === 'INTENT_SPEND_EXCEEDED' || w.code === 'INTENT_UNEXPECTED_AUTH');
+     const intentVerified = !!input.intent && !hasIntentMismatch;
+
+     const risk = computeRisk(warnings, intentVerified);
 
      const preview = {
         version: 1 as const,
         risk,
         warnings: warnings.map(w => ({ ...w, severity: w.severity || 'blocked' })), // wait, dynamic import is async... I should import statically
-        network: { passphrase: input.networkPassphrase, verified: envResult.warnings.every(w => w.code !== 'NETWORK_MISMATCH') },
+        network: { passphrase: input.networkPassphrase, verified: networkVerified && envResult.warnings.every(w => w.code !== 'NETWORK_MISMATCH') },
         envelope: {
-           source: tx.source,
-           sequence: tx.sequence,
-           fee: tx.fee,
-           operations: innerTx.operations.map(o => ({ type: o.type, decoded: o.type === 'invokeHostFunction' }))
+           source: envResult.envelope.source,
+           sequence: envResult.envelope.sequence,
+           fee: envResult.envelope.fee,
+           feeBump: envResult.envelope.feeBump,
+           memo: envResult.envelope.memo,
+           timeBounds: envResult.envelope.timeBounds,
+           operations: envResult.envelope.operations.map((o: any) => ({ type: o.type, decoded: o.decoded }))
         },
         invocation,
         auth,
