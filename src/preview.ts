@@ -36,6 +36,25 @@ export interface BuildPreviewInput {
   };
 }
 
+/** Builds the preview returned when processing must stop: every warning is forced to "blocked". */
+function blockedPreview(
+  input: BuildPreviewInput,
+  warnings: ClearSignPreview["warnings"],
+): ClearSignPreview {
+  return {
+    version: 1,
+    risk: "blocked",
+    warnings: warnings.map((w) => ({ ...w, severity: "blocked" })),
+    network: { passphrase: input.networkPassphrase, verified: false },
+    envelope: { source: "", sequence: "", fee: "", operations: [] },
+    auth: [],
+    simulation: { status: "skipped" },
+    effects: [],
+    summary: [],
+    raw: { xdr: input.xdr },
+  };
+}
+
 export async function buildPreview(
   input: BuildPreviewInput,
 ): Promise<ClearSignPreview> {
@@ -76,18 +95,7 @@ export async function buildPreview(
             message: "RPC network does not match configured network",
           },
         ]);
-        return {
-          version: 1,
-          risk: "blocked",
-          warnings: warnings.map((w) => ({ ...w, severity: "blocked" })),
-          network: { passphrase: input.networkPassphrase, verified: false },
-          envelope: { source: "", sequence: "", fee: "", operations: [] },
-          auth: [],
-          simulation: { status: "skipped" },
-          effects: [],
-          summary: [],
-          raw: { xdr: input.xdr },
-        };
+        return blockedPreview(input, warnings);
       } else if (rpcNetwork.passphrase === input.networkPassphrase) {
         networkVerified = true;
       }
@@ -98,35 +106,13 @@ export async function buildPreview(
     const envResult = parseEnvelope(input.xdr, input.networkPassphrase);
     if (!envResult.success) {
       addWarning([envResult.error]);
-      return {
-        version: 1,
-        risk: "blocked",
-        warnings: warnings.map((w) => ({ ...w, severity: "blocked" })),
-        network: { passphrase: input.networkPassphrase, verified: false },
-        envelope: { source: "", sequence: "", fee: "", operations: [] },
-        auth: [],
-        simulation: { status: "skipped" },
-        effects: [],
-        summary: [],
-        raw: { xdr: input.xdr },
-      };
+      return blockedPreview(input, warnings);
     }
 
     addWarning(envResult.warnings);
 
     if (envResult.warnings.some((w) => w.code === "NETWORK_MISMATCH")) {
-      return {
-        version: 1,
-        risk: "blocked",
-        warnings: warnings.map((w) => ({ ...w, severity: "blocked" })),
-        network: { passphrase: input.networkPassphrase, verified: false },
-        envelope: { source: "", sequence: "", fee: "", operations: [] },
-        auth: [],
-        simulation: { status: "skipped" },
-        effects: [],
-        summary: [],
-        raw: { xdr: input.xdr },
-      };
+      return blockedPreview(input, warnings);
     }
 
     const innerTx = envResult.innerTransaction;
@@ -310,17 +296,6 @@ export async function buildPreview(
       message: err.message || "Unknown error",
       severity: "blocked" as const,
     };
-    return {
-      version: 1,
-      risk: "blocked",
-      warnings: [w],
-      network: { passphrase: input.networkPassphrase, verified: false },
-      envelope: { source: "", sequence: "", fee: "", operations: [] },
-      auth: [],
-      simulation: { status: "skipped" },
-      effects: [],
-      summary: [],
-      raw: { xdr: input.xdr }, // In PDF it says: "Log nothing that contains the XDR unless debug is enabled by the caller." We don't log, we return it.
-    };
+    return blockedPreview(input, [w]);
   }
 }
