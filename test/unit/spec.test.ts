@@ -62,13 +62,13 @@ describe("spec caching", () => {
   it("fetches new Wasm if the contract is upgraded (wasmHash changes)", async () => {
     const mockWasm1 = Buffer.alloc(10);
     const mockWasm2 = Buffer.alloc(20);
-    
+
     let getInstCount = 0;
     const mockGetContractInstance = vi.fn().mockImplementation(() => {
       getInstCount++;
       return { executable: { wasmHash: getInstCount === 1 ? "123" : "456" } };
     });
-    
+
     let getWasmCount = 0;
     const mockGetContractWasmByContractId = vi.fn().mockImplementation(() => {
       getWasmCount++;
