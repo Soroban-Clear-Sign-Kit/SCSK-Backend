@@ -117,7 +117,7 @@ describe('resolveTokenMetadata', () => {
         });
 
         expect(res.warnings.length).toBe(1);
-        expect(res.warnings[0]?.code).toBe('TOKEN_METADATA_UNAVAILABLE');
+        expect(res.warnings[0]?.code).toBe('SIMULATION_UNAVAILABLE');
         expect(effects[0]?.symbol).toBeUndefined();
         
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();

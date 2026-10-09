@@ -36,7 +36,7 @@ export async function resolveTokenMetadata(
            warnings.push({ code: 'TOKEN_METADATA_UNAVAILABLE', message: `Could not read metadata for token ${contractId}` });
         }
       } catch (err: any) {
-        warnings.push({ code: 'TOKEN_METADATA_UNAVAILABLE', message: `Could not read metadata for token ${contractId}: ${err.message}` });
+        warnings.push({ code: 'SIMULATION_UNAVAILABLE', message: `RPC error resolving metadata for token ${contractId}: ${err.message}` });
       }
     }
 
