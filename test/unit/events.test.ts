@@ -23,7 +23,7 @@ describe('decodeEvent', () => {
     
     const event = new xdr.ContractEvent({
       ext: xdr.ExtensionPoint.v0(),
-      contractId: StrKey.decodeContract(contractId),
+      contractId: StrKey.decodeContract(contractId) as any,
       type: xdr.ContractEventType.contract,
       body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({
         topics: [xdr.ScVal.scvSymbol('transfer'), xdr.ScVal.scvU32(1)],
@@ -98,11 +98,11 @@ describe('decodeEvent', () => {
         events: () => specEvents
     };
 
-    (loadSpec as any).mockResolvedValue({ spec, source: 'network', warnings: [] });
+    (loadSpec as any).mockResolvedValue({ spec, source: 'wasm', warnings: [] });
     
     const event = new xdr.ContractEvent({
       ext: xdr.ExtensionPoint.v0(),
-      contractId: StrKey.decodeContract(contractId),
+      contractId: StrKey.decodeContract(contractId) as any,
       type: xdr.ContractEventType.contract,
       body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({
         topics: [xdr.ScVal.scvSymbol('transfer'), xdr.ScVal.scvU32(100)],
@@ -112,7 +112,7 @@ describe('decodeEvent', () => {
 
     const res = await decodeEvent(event, { rpcUrl: '' });
     expect(res.eventName).toBe('transfer');
-    expect(res.specSource).toBe('network');
+    expect(res.specSource).toBe('wasm');
     expect(res.data.kind).toBe('string');
   });
 
@@ -134,11 +134,11 @@ describe('decodeEvent', () => {
         events: () => specEvents
     };
 
-    (loadSpec as any).mockResolvedValue({ spec, source: 'network', warnings: [] });
+    (loadSpec as any).mockResolvedValue({ spec, source: 'wasm', warnings: [] });
     
     const event = new xdr.ContractEvent({
       ext: xdr.ExtensionPoint.v0(),
-      contractId: StrKey.decodeContract(contractId),
+      contractId: StrKey.decodeContract(contractId) as any,
       type: xdr.ContractEventType.contract,
       body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({
         // First topic is U32 instead of Symbol, which will trigger match = false

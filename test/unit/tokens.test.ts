@@ -62,9 +62,9 @@ describe('resolveTokenMetadata', () => {
         });
 
         expect(res.warnings).toEqual([]);
-        expect(effects[0].symbol).toBe('USDC');
-        expect(effects[0].decimals).toBe(7);
-        expect(effects[0].formatted).toBe('1');
+        expect(effects[0]?.symbol).toBe('USDC');
+        expect(effects[0]?.decimals).toBe(7);
+        expect(effects[0]?.formatted).toBe('1');
         
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
     });
@@ -96,7 +96,7 @@ describe('resolveTokenMetadata', () => {
             sourceAccount: sourceAccount
         });
 
-        expect(effects[0].symbol).toBe('USD');
+        expect(effects[0]?.symbol).toBe('USD');
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
     });
 
@@ -117,8 +117,8 @@ describe('resolveTokenMetadata', () => {
         });
 
         expect(res.warnings.length).toBe(1);
-        expect(res.warnings[0].code).toBe('TOKEN_METADATA_UNAVAILABLE');
-        expect(effects[0].symbol).toBeUndefined();
+        expect(res.warnings[0]?.code).toBe('TOKEN_METADATA_UNAVAILABLE');
+        expect(effects[0]?.symbol).toBeUndefined();
         
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
     });
@@ -146,7 +146,7 @@ describe('resolveTokenMetadata', () => {
         await resolveTokenMetadata(effects2, { rpcUrl: 'https://mock', networkPassphrase: 'test', sourceAccount: sourceAccount });
 
         expect(mockSimulate).toHaveBeenCalledTimes(2); // Only called for the first resolution!
-        expect(effects2[0].symbol).toBe('CACHED');
+        expect(effects2[0]?.symbol).toBe('CACHED');
         
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
     });
@@ -181,8 +181,8 @@ describe('resolveTokenMetadata', () => {
         });
 
         expect(res.warnings.length).toBe(1);
-        expect(res.warnings[0].code).toBe('TOKEN_METADATA_UNAVAILABLE');
-        expect(effects[0].symbol).toBeUndefined(); // Fallbacks remain undefined
+        expect(res.warnings[0]?.code).toBe('TOKEN_METADATA_UNAVAILABLE');
+        expect(effects[0]?.symbol).toBeUndefined(); // Fallbacks remain undefined
         
         vi.spyOn(rpc.Api, 'isSimulationSuccess').mockRestore();
     });

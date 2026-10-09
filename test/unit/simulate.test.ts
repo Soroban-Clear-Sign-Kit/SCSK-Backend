@@ -44,7 +44,7 @@ describe('simulateTransaction', () => {
         
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
         expect(sim.status).toBe('unavailable');
-        expect(sim.warnings[0].code).toBe('SIMULATION_UNAVAILABLE');
+        expect(sim.warnings[0]?.code).toBe('SIMULATION_UNAVAILABLE');
     });
 
     it('returns unavailable when the RPC call exceeds the timeout', async () => {
@@ -92,7 +92,7 @@ describe('simulateTransaction', () => {
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
         expect(sim.status).toBe('failed');
         expect(sim.error).toBe('Failed');
-        expect(sim.warnings[0].code).toBe('SIMULATION_FAILED');
+        expect(sim.warnings[0]?.code).toBe('SIMULATION_FAILED');
         
         isSimulationErrorMock.mockRestore();
     });
@@ -108,7 +108,7 @@ describe('simulateTransaction', () => {
         
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
         expect(sim.status).toBe('needs-restore');
-        expect(sim.warnings[0].code).toBe('RESTORE_REQUIRED');
+        expect(sim.warnings[0]?.code).toBe('RESTORE_REQUIRED');
         
         isSimulationErrorMock.mockRestore();
         isSimulationRestoreMock.mockRestore();
@@ -223,7 +223,7 @@ describe('simulateTransaction', () => {
         const isSimulationRestoreMock = vi.spyOn(rpc.Api, 'isSimulationRestore').mockReturnValue(false);
         const isSimulationSuccessMock = vi.spyOn(rpc.Api, 'isSimulationSuccess').mockReturnValue(true);
         
-        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: { getFunc: () => ({ outputs: ['u32'] }) } as any, source: 'network', warnings: [] });
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: { getFunc: () => ({ outputs: ['u32'] }) } as any, source: 'wasm', warnings: [] });
 
         const sim = await simulateTransaction(tx, { rpcUrl: 'http://mock', networkPassphrase: Networks.TESTNET });
         expect(sim.status).toBe('success');

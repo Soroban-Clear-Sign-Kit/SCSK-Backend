@@ -27,7 +27,7 @@ describe('Mainnet Complex Fixtures', () => {
             if (parsed.innerTransaction.operations.length > 0) {
                 for (const op of parsed.innerTransaction.operations) {
                     if (op.type === 'invokeHostFunction') {
-                        const decoded = decodeInvocation((op as any).invokeHostFunctionOp || (op as any).func || op.hostFunction);
+                        const decoded = await decodeInvocation((op as any).invokeHostFunctionOp || (op as any).func || (op as any).hostFunction, { networkPassphrase: 'Public Global Stellar Network ; September 2015', rpcUrl: 'https://soroban-testnet.stellar.org' });
                         expect(decoded).toBeDefined();
                     }
                 }

@@ -116,12 +116,12 @@ describe('buildPreview', () => {
         vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
         vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
         vi.mocked(summary.generateSummary).mockReturnValue([]);
-        vi.mocked(risk.computeRisk).mockReturnValue('warning');
+        vi.mocked(risk.computeRisk).mockReturnValue('review');
 
         const res = await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
         
         expect(res.warnings.length).toBe(1);
-        expect(res.warnings[0].severity).toBe('review');
+        expect(res.warnings[0]?.severity).toBe('review');
     });
 
     it('returns internal error on throw', async () => {
@@ -133,8 +133,8 @@ describe('buildPreview', () => {
         
         expect(res.risk).toBe('blocked');
         expect(res.warnings.length).toBe(1);
-        expect(res.warnings[0].code).toBe('INTERNAL_ERROR');
-        expect(res.warnings[0].message).toBe('Something exploded');
-        expect(res.warnings[0].severity).toBe('blocked');
+        expect(res.warnings[0]?.code).toBe('INTERNAL_ERROR');
+        expect(res.warnings[0]?.message).toBe('Something exploded');
+        expect(res.warnings[0]?.severity).toBe('blocked');
     });
 });

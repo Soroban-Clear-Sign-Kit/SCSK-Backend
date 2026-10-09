@@ -18,7 +18,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: false,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: undefined,
+                    contractId: null,
                     type: xdr.ContractEventType.system,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({
                         topics: [],
@@ -45,7 +45,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({
                         topics: topics,
@@ -57,8 +57,8 @@ describe('extractTokenEffects', () => {
         
         const res = extractTokenEffects(events);
         expect(res.effects.length).toBe(2);
-        expect(res.effects[0].delta).toBe('-100');
-        expect(res.effects[1].delta).toBe('100');
+        expect(res.effects[0]?.delta).toBe('-100');
+        expect(res.effects[1]?.delta).toBe('100');
     });
 
     it('extracts mint events', () => {
@@ -72,7 +72,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })
@@ -80,7 +80,7 @@ describe('extractTokenEffects', () => {
         ];
         const res = extractTokenEffects(events);
         expect(res.effects.length).toBe(1);
-        expect(res.effects[0].delta).toBe('50');
+        expect(res.effects[0]?.delta).toBe('50');
     });
 
     it('extracts burn events', () => {
@@ -94,7 +94,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })
@@ -102,7 +102,7 @@ describe('extractTokenEffects', () => {
         ];
         const res = extractTokenEffects(events);
         expect(res.effects.length).toBe(1);
-        expect(res.effects[0].delta).toBe('-20');
+        expect(res.effects[0]?.delta).toBe('-20');
     });
 
     it('extracts clawback events', () => {
@@ -116,7 +116,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })
@@ -124,7 +124,7 @@ describe('extractTokenEffects', () => {
         ];
         const res = extractTokenEffects(events);
         expect(res.effects.length).toBe(1);
-        expect(res.effects[0].delta).toBe('-30');
+        expect(res.effects[0]?.delta).toBe('-30');
     });
 
     it('handles map amount shape', () => {
@@ -143,7 +143,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })
@@ -151,7 +151,7 @@ describe('extractTokenEffects', () => {
         ];
         const res = extractTokenEffects(events);
         expect(res.effects.length).toBe(1);
-        expect(res.effects[0].delta).toBe('50');
+        expect(res.effects[0]?.delta).toBe('50');
     });
 
     it('warns on unknown amount shape', () => {
@@ -165,7 +165,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })
@@ -187,7 +187,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })
@@ -217,7 +217,7 @@ describe('extractTokenEffects', () => {
                 inSuccessfulContractCall: true,
                 event: new xdr.ContractEvent({
                     ext: xdr.ExtensionPoint.v0(),
-                    contractId: contractId,
+                    contractId: contractId as any,
                     type: xdr.ContractEventType.contract,
                     body: xdr.ContractEventBody.v0(new xdr.ContractEventV0({ topics, data }))
                 })

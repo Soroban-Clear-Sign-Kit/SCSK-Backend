@@ -42,8 +42,8 @@ describe('decodeAuthEntries', () => {
 
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toEqual([{ code: 'AUTH_UNKNOWN_CONTRACT', message: `No spec found for auth contract ${Address.contract(Buffer.alloc(32)).toString()}` }]);
-        expect(res.auth[0].credentials.type).toBe('source-account');
-        expect(res.auth[0].root.kind).toBe('contract-fn');
+        expect(res.auth[0]?.credentials?.type).toBe('source-account');
+        expect(res.auth[0]?.root?.kind).toBe('contract-fn');
     });
 
     it('decodes address credentials and checks expirations', async () => {
@@ -149,7 +149,7 @@ describe('decodeAuthEntries', () => {
         ];
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'AUTH_CREATES_CONTRACT', message: 'Create-contract node inside auth' });
-        expect(res.auth[0].root.kind).toBe('create-contract');
+        expect(res.auth[0]?.root?.kind).toBe('create-contract');
     });
 
     it('warns on depth limits', async () => {
@@ -243,12 +243,12 @@ describe('decodeAuthEntries', () => {
             })
         };
 
-        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'network', warnings: [] });
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'wasm', warnings: [] });
         vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
 
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
-        expect(res.auth[0].root.args![0].name).toBe('amount');
-        expect(res.auth[0].root.args![1].name).toBe('to');
+        expect((res.auth[0]?.root as any)?.args?.[0]?.name).toBe('amount');
+        expect((res.auth[0]?.root as any)?.args?.[1]?.name).toBe('to');
     });
 
     it('decodes arguments using sac-builtin', async () => {
@@ -273,12 +273,12 @@ describe('decodeAuthEntries', () => {
         vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
 
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
-        expect(res.auth[0].root.args![0].name).toBe('from');
+        expect((res.auth[0]?.root as any)?.args?.[0]?.name).toBe('from');
     });
 
     it('warns on node count limit exceeded', async () => {
         const buildWideInv = (breadth: number): any => {
-            const subInvocations = [];
+            const subInvocations: any[] = [];
             for (let i = 0; i < breadth; i++) {
                 subInvocations.push({
                     function: () => ({ switch: () => ({ name: 'scvVoid' }) }),
@@ -318,10 +318,10 @@ describe('decodeAuthEntries', () => {
             }
         ];
         
-        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'network', warnings: [] }); 
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: null, source: 'wasm', warnings: [] }); 
         vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
 
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
-        expect(res.auth[0].root.args![0].name).toBeNull();
+        expect((res.auth[0]?.root as any)?.args?.[0]?.name).toBeNull();
     });
 });

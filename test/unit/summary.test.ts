@@ -65,12 +65,12 @@ describe('Summary generation', () => {
     });
 
     it('generates summary for balance function', () => {
-        const summary = generateSummary({ contractId: 'C1', functionName: 'balance', args: [{ name: 'id', value: { kind: 'address', value: 'GA1' } }], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        const summary = generateSummary({ contractId: 'C1', functionName: 'balance', args: [{ name: 'id', typeName: 'address', value: { kind: 'address', value: 'GA1', addressType: 'account' } }], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
         expect(summary).toContain('Reads the balance of GA1 on token C1');
     });
 
     it('generates summary for allowance function', () => {
-        const summary = generateSummary({ contractId: 'C1', functionName: 'allowance', args: [{ name: 'from', value: { kind: 'address', value: 'GA1' } }, { name: 'spender', value: { kind: 'address', value: 'GA2' } }], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
+        const summary = generateSummary({ contractId: 'C1', functionName: 'allowance', args: [{ name: 'from', typeName: 'address', value: { kind: 'address', value: 'GA1', addressType: 'account' } }, { name: 'spender', typeName: 'address', value: { kind: 'address', value: 'GA2', addressType: 'account' } }], specSource: 'none' }, [], [], { status: 'success', warnings: [] });
         expect(summary).toContain('Reads the allowance from GA1 for spender GA2 on token C1');
     });
 

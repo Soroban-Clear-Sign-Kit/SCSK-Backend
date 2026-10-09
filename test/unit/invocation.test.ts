@@ -73,12 +73,12 @@ describe('decodeInvocation', () => {
             getFunc: (name: string) => undefined
         };
 
-        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'network', warnings: [] });
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'wasm', warnings: [] });
         vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
 
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.invocation.args.length).toBe(1);
-        expect(res.invocation.args[0].name).toBeNull();
+        expect(res.invocation.args[0]?.name).toBeNull();
     });
 
     it('decodes spec with arg count mismatch and type mismatch', async () => {
@@ -108,7 +108,7 @@ describe('decodeInvocation', () => {
             })
         };
 
-        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'network', warnings: [] });
+        vi.mocked(spec.loadSpec).mockResolvedValue({ spec: mockSpec as any, source: 'wasm', warnings: [] });
         vi.mocked(scval.decodeScVal).mockReturnValue({ value: { kind: 'int', type: 'u32', value: '1' } as any, warnings: [] });
 
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
@@ -140,7 +140,7 @@ describe('decodeInvocation', () => {
 
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.invocation.args.length).toBe(1);
-        expect(res.invocation.args[0].name).toBeNull();
+        expect(res.invocation.args[0]?.name).toBeNull();
     });
 
     it('decodes with no spec available', async () => {
@@ -169,7 +169,7 @@ describe('decodeInvocation', () => {
         expect(res.invocation.functionName).toBe('my_func');
         expect(res.invocation.specSource).toBe('none');
         expect(res.invocation.args.length).toBe(1);
-        expect(res.invocation.args[0].name).toBeNull();
+        expect(res.invocation.args[0]?.name).toBeNull();
     });
 
     it('decodes with function name missing toString', async () => {
@@ -224,8 +224,8 @@ describe('decodeInvocation', () => {
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
         expect(res.invocation.contractId).toBe('Deploy');
-        expect(res.invocation.args[0].value.value).toBe(keypair.publicKey());
-        expect(res.invocation.args[2].value.value).toBe('Stellar Asset');
+        expect((res.invocation.args[0]?.value as any)?.value).toBe(keypair.publicKey());
+        expect((res.invocation.args[2]?.value as any)?.value).toBe('Stellar Asset');
     });
 
     it('decodes create contract v2', async () => {
@@ -259,9 +259,9 @@ describe('decodeInvocation', () => {
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
         expect(res.invocation.contractId).toBe('Deploy');
-        expect(res.invocation.args[0].value.value).toBe(keypair.publicKey());
-        expect(res.invocation.args[2].value.value).toBe('Stellar Asset');
-        expect(res.invocation.args[3].name).toBe('constructorArg[0]');
+        expect((res.invocation.args[0]?.value as any)?.value).toBe(keypair.publicKey());
+        expect((res.invocation.args[2]?.value as any)?.value).toBe('Stellar Asset');
+        expect(res.invocation.args[3]?.name).toBe('constructorArg[0]');
     });
 
     it('decodes upload wasm', async () => {
@@ -280,7 +280,7 @@ describe('decodeInvocation', () => {
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'WASM_UPLOAD', message: 'Transaction uploads contract code' });
         expect(res.invocation.contractId).toBe('Upload');
-        expect(res.invocation.args[0].value.value).toBe('100');
+        expect((res.invocation.args[0]?.value as any)?.value).toBe('100');
     });
 
     it('handles unknown invoke function', async () => {
@@ -326,7 +326,7 @@ describe('decodeInvocation', () => {
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
         expect(res.invocation.contractId).toBe('Deploy');
-        expect(res.invocation.args[2].value.value).toHaveLength(64); // 32 bytes hex
+        expect((res.invocation.args[2]?.value as any)?.value).toHaveLength(64); // 32 bytes hex
     });
 
     it('decodes create contract v2 with wasm executable', async () => {
@@ -361,8 +361,8 @@ describe('decodeInvocation', () => {
         const res = await decodeInvocation(op, { rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual({ code: 'CONTRACT_DEPLOYMENT', message: 'Transaction deploys a contract' });
         expect(res.invocation.contractId).toBe('Deploy');
-        expect(res.invocation.args[2].value.value).toHaveLength(64); // 32 bytes hex
-        expect(res.invocation.args[3].name).toBe('constructorArg[0]');
+        expect((res.invocation.args[2]?.value as any)?.value).toHaveLength(64); // 32 bytes hex
+        expect(res.invocation.args[3]?.name).toBe('constructorArg[0]');
     });
 
     it('handles sac-builtin with unknown function name', async () => {

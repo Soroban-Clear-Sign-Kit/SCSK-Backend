@@ -25,7 +25,7 @@ describe('intent verification', () => {
 
   it('fails on empty invocation or intent', () => {
     expect(verifyIntent(undefined, defaultInvocation, [], [], 'G123').warnings).toEqual([]);
-    expect(verifyIntent({ contractId: 'C1' }, undefined, [], [], 'G123').warnings).toEqual([]);
+    expect(verifyIntent({ contractId: 'C1', functionName: '' }, undefined as any, [], [], 'G123').warnings).toEqual([]);
   });
 
   it('fails on contract id mismatch', () => {
@@ -95,7 +95,7 @@ describe('intent verification', () => {
     };
     const auth: AuthEntry[] = [
       {
-        credentials: { type: 'address', address: 'G123' },
+        credentials: { type: 'address', address: 'G123' } as any,
         root: { contractId: 'C123', functionName: 'transfer', args: [], children: [ { contractId: 'C999' } ] } as any
       }
     ];

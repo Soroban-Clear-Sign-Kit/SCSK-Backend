@@ -93,14 +93,14 @@ describe('decodeScVal', () => {
     it('catches decoding errors gracefully', () => {
         const badVal = { type: 'scvU32', toXDR: () => Buffer.from('bad') };
         const res = decodeScVal(badVal as any);
-        expect(res.warnings[0].code).toBe('INTERNAL_ERROR');
+        expect(res.warnings[0]?.code).toBe('INTERNAL_ERROR');
         expect(res.value.kind).toBe('raw');
     });
 
     it('falls back to raw on unsupported scval', () => {
         const unsupportedVal = { switch: () => ({ name: 'scvLedgerKeyContractInstance' }), toXDR: () => Buffer.from('unsupported') };
         const res = decodeScVal(unsupportedVal as any);
-        expect(res.warnings[0].code).toBe('UNSUPPORTED_SCVAL');
+        expect(res.warnings[0]?.code).toBe('UNSUPPORTED_SCVAL');
         expect(res.value.kind).toBe('raw');
     });
 

@@ -70,7 +70,7 @@ describe('spec caching', () => {
     (contract.Spec.fromWasm as any).mockImplementationOnce(() => { throw new Error('bad'); });
     const res = await loadSpec(contractId, opts);
     expect(res.source).toBe('none');
-    expect(res.warnings[0].code).toBe('SPEC_UNAVAILABLE');
+    expect(res.warnings[0]?.code).toBe('SPEC_UNAVAILABLE');
   });
 
   it('returns none if no RPC URL', async () => {
@@ -118,7 +118,7 @@ describe('spec caching', () => {
 
     const res = await loadSpec(contractId, opts);
     expect(res.source).toBe('none');
-    expect(res.warnings[0].code).toBe('SPEC_UNAVAILABLE');
+    expect(res.warnings[0]?.code).toBe('SPEC_UNAVAILABLE');
   });
 
   it('handles empty Wasm response from RPC', async () => {
@@ -137,7 +137,7 @@ describe('spec caching', () => {
 
     const res = await loadSpec(contractId, opts);
     expect(res.source).toBe('none');
-    expect(res.warnings[0].message).toContain('No Wasm returned');
+    expect(res.warnings[0]?.message).toContain('No Wasm returned');
   });
 
   it('handles Wasm response missing wasmBytes', async () => {
@@ -156,7 +156,7 @@ describe('spec caching', () => {
 
     const res = await loadSpec(contractId, opts);
     expect(res.source).toBe('none');
-    expect(res.warnings[0].message).toContain('Wasm response missing wasmBytes');
+    expect(res.warnings[0]?.message).toContain('Wasm response missing wasmBytes');
   });
 
   it('handles contractExecutableWasm xdr type correctly', async () => {
