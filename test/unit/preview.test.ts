@@ -182,4 +182,34 @@ describe('buildPreview', () => {
         expect(res.network.verified).toBe(false);
         expect(res.network.passphrase).toBe('test');
     });
+
+    it('prioritizes auth from transaction over simulation', async () => {
+        vi.mocked(envelope.parseEnvelope).mockReturnValue({
+            success: true,
+            warnings: [],
+            envelope: { source: '', sequence: '', fee: '', operations: [] } as any,
+            innerTransaction: { operations: [{ type: 'invokeHostFunction', auth: ['tx-auth'] }] } as any
+        });
+        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
+            warnings: []
+        });
+        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'success', auth: ['sim-auth'], latestLedger: 100, warnings: [], events: [] });
+        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
+        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
+        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+        vi.mocked(summary.generateSummary).mockReturnValue([]);
+        vi.mocked(risk.computeRisk).mockReturnValue('ok');
+
+        const mockGetNetwork = vi.fn().mockResolvedValue({ passphrase: 'test' });
+        vi.mocked(rpc.Server).mockImplementation(() => ({
+            getNetwork: mockGetNetwork,
+            getLatestLedger: vi.fn().mockResolvedValue({ sequence: 100 })
+        }) as any);
+
+        await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
+        
+        expect(auth.decodeAuthEntries).toHaveBeenCalledWith(['tx-auth'], expect.anything(), expect.anything());
+    });
 });

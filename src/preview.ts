@@ -158,13 +158,14 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      }
 
      // Auth
-     let authXdr = simulation.auth || [];
-     if (authXdr.length === 0) {
-        for (const op of innerTx.operations) {
-           if (op.type === 'invokeHostFunction' && (op as any).auth) {
-               authXdr = authXdr.concat((op as any).auth);
-           }
+     let authXdr: any[] = [];
+     for (const op of innerTx.operations) {
+        if (op.type === 'invokeHostFunction' && (op as any).auth) {
+            authXdr = authXdr.concat((op as any).auth);
         }
+     }
+     if (authXdr.length === 0 && simulation.auth) {
+        authXdr = simulation.auth;
      }
      const authOpts: any = {
         rpcUrl: input.rpcUrl,
