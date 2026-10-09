@@ -7,7 +7,8 @@ export function verifyIntent(
   invocation: Invocation | undefined,
   auth: AuthEntry[],
   effects: BalanceDelta[],
-  signerAddress?: string
+  signerAddress?: string,
+  sourceAccount?: string
 ): { warnings: { code: WarningCode; message: string; path?: string }[] } {
   const warnings: { code: WarningCode; message: string; path?: string }[] = [];
   if (!intent) return { warnings };
@@ -89,7 +90,9 @@ export function verifyIntent(
   if (intent.allowedContracts && signerAddress) {
      const allowed = new Set(intent.allowedContracts.map(c => normalize(c)));
      for (const entry of auth) {
-        if (entry.credentials.type === 'address' && entry.credentials.address === signerAddress) {
+        const isAddressMatch = entry.credentials.type === 'address' && entry.credentials.address === signerAddress;
+        const isSourceMatch = entry.credentials.type === 'source-account' && sourceAccount === signerAddress;
+        if (isAddressMatch || isSourceMatch) {
            const walk = (node: any) => {
               if (node.contractId && !allowed.has(normalize(node.contractId))) {
                  warnings.push({ code: 'INTENT_UNEXPECTED_AUTH', message: `Signer authorizes unexpected contract ${node.contractId}` });
