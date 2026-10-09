@@ -1,22 +1,22 @@
-import { xdr, StrKey, contract } from '@stellar/stellar-sdk';
-import { SpecLoaderOptions, loadSpec } from './spec.js';
-import { decodeScVal } from './scval.js';
-import { WarningCode } from './errors.js';
-import { DisplayValue } from './types.js';
+import { xdr, StrKey, contract } from "@stellar/stellar-sdk";
+import { SpecLoaderOptions, loadSpec } from "./spec.js";
+import { decodeScVal } from "./scval.js";
+import { WarningCode } from "./errors.js";
+import { DisplayValue } from "./types.js";
 
 export interface DecodedEvent {
   contractId: string | null;
-  type: 'system' | 'contract' | 'diagnostic' | 'unknown';
+  type: "system" | "contract" | "diagnostic" | "unknown";
   topics: DisplayValue[];
   data: DisplayValue;
   eventName: string | null;
-  specSource: 'wasm' | 'injected' | 'sac-builtin' | 'none';
+  specSource: "wasm" | "injected" | "sac-builtin" | "none";
   warnings: { code: WarningCode; message: string }[];
 }
 
 export async function decodeEvent(
   event: xdr.ContractEvent,
-  opts: SpecLoaderOptions
+  opts: SpecLoaderOptions,
 ): Promise<DecodedEvent> {
   const warnings: { code: WarningCode; message: string }[] = [];
 
@@ -25,17 +25,24 @@ export async function decodeEvent(
     contractId = StrKey.encodeContract(new Uint8Array(event.contractId as any));
   }
 
-  let type: 'system' | 'contract' | 'diagnostic' | 'unknown' = 'unknown';
-  const typeStr = typeof event.type === 'string' ? event.type : (event.type as any).name;
-  if (typeStr === 'contractEventTypeSystem' || typeStr === 'system') type = 'system';
-  else if (typeStr === 'contractEventTypeContract' || typeStr === 'contract') type = 'contract';
-  else if (typeStr === 'contractEventTypeDiagnostic' || typeStr === 'diagnostic') type = 'diagnostic';
+  let type: "system" | "contract" | "diagnostic" | "unknown" = "unknown";
+  const typeStr =
+    typeof event.type === "string" ? event.type : (event.type as any).name;
+  if (typeStr === "contractEventTypeSystem" || typeStr === "system")
+    type = "system";
+  else if (typeStr === "contractEventTypeContract" || typeStr === "contract")
+    type = "contract";
+  else if (
+    typeStr === "contractEventTypeDiagnostic" ||
+    typeStr === "diagnostic"
+  )
+    type = "diagnostic";
 
   const body = event.body.value;
   const topicsScVal = body.topics || [];
   const dataScVal = body.data;
 
-  let specSource: 'wasm' | 'injected' | 'sac-builtin' | 'none' = 'none';
+  let specSource: "wasm" | "injected" | "sac-builtin" | "none" = "none";
   let eventName: string | null = null;
   let topicTypes: any[] = [];
   let dataType: any = null;
@@ -66,15 +73,18 @@ export async function decodeEvent(
             // A perfect match would decode the first topic and compare it to the event name?
             // Actually, Soroban events don't strictly require the first topic to be the name, but usually it is.
             // Spec `parseEvent` matches strictly. We can do a loose match or just take the first that matches types.
-            const defName = defType.replace('scSpecType', '').toLowerCase();
-            const valName = valType?.replace('scv', '').toLowerCase();
-            if (defName === 'symbol' && valName !== 'symbol') {
+            const defName = defType.replace("scSpecType", "").toLowerCase();
+            const valName = valType?.replace("scv", "").toLowerCase();
+            if (defName === "symbol" && valName !== "symbol") {
               match = false;
               break;
             }
           }
           if (match) {
-            eventName = typeof entry.name === 'function' ? entry.name().toString('utf8') : entry.name.toString('utf8');
+            eventName =
+              typeof entry.name === "function"
+                ? entry.name().toString("utf8")
+                : entry.name.toString("utf8");
             topicTypes = topicsDefs;
             dataType = dataDef;
             break;
@@ -90,7 +100,7 @@ export async function decodeEvent(
     return res.value;
   });
 
-  if (!eventName && topics.length > 0 && topics[0]?.kind === 'symbol') {
+  if (!eventName && topics.length > 0 && topics[0]?.kind === "symbol") {
     eventName = (topics[0] as any).value;
   }
 
@@ -104,6 +114,6 @@ export async function decodeEvent(
     data: dataRes.value,
     eventName,
     specSource,
-    warnings
+    warnings,
   };
 }

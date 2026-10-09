@@ -1,4 +1,4 @@
-import { xdr } from '@stellar/stellar-sdk';
+import { xdr } from "@stellar/stellar-sdk";
 const x = new xdr.DiagnosticEvent({
   inSuccessfulContractCall: true,
   event: new xdr.ContractEvent({
@@ -8,9 +8,9 @@ const x = new xdr.DiagnosticEvent({
     body: xdr.ContractEventBody.contractEventBodyV0(
       new xdr.ContractEventV0({
         topics: [],
-        data: xdr.ScVal.scvVoid()
-      })
-    )
-  })
+        data: xdr.ScVal.scvVoid(),
+      }),
+    ),
+  }),
 });
 console.log(typeof x.inSuccessfulContractCall);

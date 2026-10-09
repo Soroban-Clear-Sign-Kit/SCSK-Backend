@@ -1,19 +1,20 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
+title: ""
 labels: enhancement
-assignees: ''
-
+assignees: ""
 ---
 
 **Acceptance Criteria**
 <!-- What constitutes a successful implementation of this feature? -->
-- [ ] 
+
+- [ ]
 
 **Files touched**
 <!-- Which files do you expect to modify to implement this feature? -->
-- 
+
+-
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]

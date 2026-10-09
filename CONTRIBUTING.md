@@ -27,11 +27,12 @@ pnpm run test:integration
 
 ## Commit Convention
 
-Please ensure your commits follow the Conventional Commits specification. We use small, conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`). 
+Please ensure your commits follow the Conventional Commits specification. We use small, conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
 
 ## Pull Request Checklist
 
 When submitting a PR, please ensure:
+
 - [ ] Tests added for any new functionality or bug fixes.
 - [ ] Code is lint-clean (`pnpm run lint` passes).
 - [ ] Documentation is updated if API changes were made.

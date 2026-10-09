@@ -1,6 +1,10 @@
-import { MAX_DISPLAY_STRING } from './limits.js';
+import { MAX_DISPLAY_STRING } from "./limits.js";
 
-export function sanitizeString(input: string): { value: string; sanitized: boolean; truncated: boolean } {
+export function sanitizeString(input: string): {
+  value: string;
+  sanitized: boolean;
+  truncated: boolean;
+} {
   let value = input;
   let sanitized = false;
   let truncated = false;
@@ -8,14 +12,14 @@ export function sanitizeString(input: string): { value: string; sanitized: boole
   // Remove bidi override, isolate, and zero-width characters
   const removeRegex = /[\u202A-\u202E\u2066-\u2069\u200B-\u200D\uFEFF]/g;
   if (removeRegex.test(value)) {
-    value = value.replace(removeRegex, '');
+    value = value.replace(removeRegex, "");
     sanitized = true;
   }
 
   // Replace C0 and C1 control characters with ?
   const controlRegex = /[\u0000-\u001F\u007F-\u009F]/g;
   if (controlRegex.test(value)) {
-    value = value.replace(controlRegex, '?');
+    value = value.replace(controlRegex, "?");
     sanitized = true;
   }
 
@@ -29,19 +33,19 @@ export function sanitizeString(input: string): { value: string; sanitized: boole
 }
 
 export function sanitizeRecursive(obj: any): any {
-  if (typeof obj === 'string') {
+  if (typeof obj === "string") {
     return sanitizeString(obj).value;
   }
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeRecursive(item));
+    return obj.map((item) => sanitizeRecursive(item));
   }
-  if (obj !== null && typeof obj === 'object') {
+  if (obj !== null && typeof obj === "object") {
     const res: any = {};
     for (const key of Object.keys(obj)) {
-      if (key === 'hex' || key === 'xdr') {
-         res[key] = obj[key]; // Do not sanitize hex strings or raw xdr
+      if (key === "hex" || key === "xdr") {
+        res[key] = obj[key]; // Do not sanitize hex strings or raw xdr
       } else {
-         res[key] = sanitizeRecursive(obj[key]);
+        res[key] = sanitizeRecursive(obj[key]);
       }
     }
     return res;

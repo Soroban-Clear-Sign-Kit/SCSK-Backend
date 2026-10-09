@@ -17,6 +17,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test",
+    "format:check": "prettier --check .",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage"
@@ -29,6 +30,7 @@
     "@types/node": "^22.5.5",
     "@vitest/coverage-v8": "^2.1.1",
     "eslint": "^10.12.0",
+    "prettier": "^3.9.9",
     "tsup": "^8.3.0",
     "typescript": "^5.6.2",
     "typescript-eslint": "^8.71.1",

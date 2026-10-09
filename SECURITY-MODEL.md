@@ -22,6 +22,7 @@ The Soroban Clear-Sign Kit (SCSK) is designed with a strict, fail-closed securit
 ## Risk Engine & Heuristics
 
 The SCSK risk engine evaluates the parsed envelope and simulated effects to assign a risk score:
+
 - **Low Risk:** Standard token transfers, known DEX interactions, and operations conforming to standard Stellar interfaces (e.g., SEP-41).
 - **Medium Risk:** Interactions with newly deployed, unverified contracts, or operations lacking complete contract specs.
 - **High Risk:** Operations that generate warnings during decoding (e.g., excessive argument limits, mismatched types, auth expiration approaching).
@@ -29,12 +30,12 @@ The SCSK risk engine evaluates the parsed envelope and simulated effects to assi
 
 ## Threat Model Mitigation
 
-| Threat | SCSK Mitigation |
-|--------|-----------------|
-| **Blind Signing Phishing** | Enforces human-readable presentation of `hostFunctionTypeInvokeContract`. |
-| **Malicious Spec Injection** | Validates `ScVal` types against XDR strictly; sanitizes strings. |
-| **Fee-Bump Hijacking** | Safely unrolls `FeeBumpTransaction` envelopes to inspect the inner transaction. |
-| **Auth Tree Masking** | Recursively walks the `SorobanAuthorizationEntry` tree to enforce maximum depth constraints and expose all root invocations. |
+| Threat                       | SCSK Mitigation                                                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Blind Signing Phishing**   | Enforces human-readable presentation of `hostFunctionTypeInvokeContract`.                                                    |
+| **Malicious Spec Injection** | Validates `ScVal` types against XDR strictly; sanitizes strings.                                                             |
+| **Fee-Bump Hijacking**       | Safely unrolls `FeeBumpTransaction` envelopes to inspect the inner transaction.                                              |
+| **Auth Tree Masking**        | Recursively walks the `SorobanAuthorizationEntry` tree to enforce maximum depth constraints and expose all root invocations. |
 
 ## Bug Bounty & Auditing
 
