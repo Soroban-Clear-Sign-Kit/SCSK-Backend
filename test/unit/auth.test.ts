@@ -334,7 +334,7 @@ describe('decodeAuthEntries', () => {
                     subInvocations: []
                 }
             }
-        ], 50, { topLevelContractId: Address.contract(Buffer.alloc(32, 1)).toString() });
+        ], 50, { topLevelContractId: Address.contract(Buffer.alloc(32, 1)).toString(), rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).toContainEqual(expect.objectContaining({ code: 'AUTH_UNKNOWN_CONTRACT' }));
     });
 
@@ -350,8 +350,8 @@ describe('decodeAuthEntries', () => {
                     ]
                 }
             }
-        ], 50, { topLevelContractId: Address.contract(Buffer.alloc(32, 1)).toString() });
+        ], 50, { topLevelContractId: Address.contract(Buffer.alloc(32, 1)).toString(), rpcUrl: '', networkPassphrase: '' });
         expect(res.warnings).not.toContainEqual(expect.objectContaining({ code: 'AUTH_UNKNOWN_CONTRACT' }));
-        expect(res.auth[0].root.children).toEqual([]); // children should be skipped!
+        expect(res.auth[0]?.root?.children).toEqual([]); // children should be skipped!
     });
 });
