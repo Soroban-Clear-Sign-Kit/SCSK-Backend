@@ -212,4 +212,42 @@ describe('buildPreview', () => {
         
         expect(auth.decodeAuthEntries).toHaveBeenCalledWith(['tx-auth'], expect.anything(), expect.anything());
     });
+
+    it('includes memo, feeBump and timeBounds in the preview envelope', async () => {
+        vi.mocked(envelope.parseEnvelope).mockReturnValue({
+            success: true,
+            warnings: [],
+            envelope: {
+                source: 'S', sequence: '1', fee: '100',
+                memo: { type: 'text', value: 'hello' },
+                timeBounds: { min: '0', max: '0' },
+                feeBump: { feeSource: 'S', fee: '200' },
+                operations: []
+            } as any,
+            innerTransaction: { operations: [] } as any
+        });
+        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
+            warnings: []
+        });
+        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'skipped', warnings: [] });
+        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
+        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
+        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+        vi.mocked(summary.generateSummary).mockReturnValue([]);
+        vi.mocked(risk.computeRisk).mockReturnValue('ok');
+
+        const mockGetNetwork = vi.fn().mockResolvedValue({ passphrase: 'test' });
+        vi.mocked(rpc.Server).mockImplementation(() => ({
+            getNetwork: mockGetNetwork,
+            getLatestLedger: vi.fn().mockResolvedValue({ sequence: 100 })
+        }) as any);
+
+        const res = await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
+        
+        expect(res.envelope.memo).toEqual({ type: 'text', value: 'hello' });
+        expect(res.envelope.timeBounds).toEqual({ min: '0', max: '0' });
+        expect(res.envelope.feeBump).toEqual({ feeSource: 'S', fee: '200' });
+    });
 });

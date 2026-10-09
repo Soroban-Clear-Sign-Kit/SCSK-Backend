@@ -200,10 +200,13 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         warnings: warnings.map(w => ({ ...w, severity: w.severity || 'blocked' })), // wait, dynamic import is async... I should import statically
         network: { passphrase: input.networkPassphrase, verified: networkVerified && envResult.warnings.every(w => w.code !== 'NETWORK_MISMATCH') },
         envelope: {
-           source: tx.source,
-           sequence: tx.sequence,
-           fee: tx.fee,
-           operations: innerTx.operations.map(o => ({ type: o.type, decoded: o.type === 'invokeHostFunction' }))
+           source: envResult.envelope.source,
+           sequence: envResult.envelope.sequence,
+           fee: envResult.envelope.fee,
+           feeBump: envResult.envelope.feeBump,
+           memo: envResult.envelope.memo,
+           timeBounds: envResult.envelope.timeBounds,
+           operations: envResult.envelope.operations.map((o: any) => ({ type: o.type, decoded: o.decoded }))
         },
         invocation,
         auth,
