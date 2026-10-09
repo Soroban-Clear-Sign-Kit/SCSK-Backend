@@ -42,8 +42,8 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
 
   try {
      const server = new rpc.Server(input.rpcUrl, { allowHttp: input.rpcUrl.startsWith('http://') });
-     let rpcNetwork: rpc.Api.GetNetworkResponse;
      let networkVerified = false;
+     let rpcNetwork: rpc.Api.GetNetworkResponse;
      try {
        rpcNetwork = await server.getNetwork();
        if (rpcNetwork.passphrase && rpcNetwork.passphrase !== input.networkPassphrase) {
@@ -60,7 +60,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
              summary: [],
              raw: { xdr: input.xdr }
           };
-       } else {
+       } else if (rpcNetwork.passphrase === input.networkPassphrase) {
           networkVerified = true;
        }
      } catch(e) {
@@ -158,14 +158,13 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      }
 
      // Auth
-     let authXdr: any[] = [];
-     for (const op of innerTx.operations) {
-        if (op.type === 'invokeHostFunction' && (op as any).auth) {
-            authXdr = authXdr.concat((op as any).auth);
+     let authXdr = simulation.auth || [];
+     if (authXdr.length === 0) {
+        for (const op of innerTx.operations) {
+           if (op.type === 'invokeHostFunction' && (op as any).auth) {
+               authXdr = authXdr.concat((op as any).auth);
+           }
         }
-     }
-     if (authXdr.length === 0 && simulation.auth) {
-        authXdr = simulation.auth;
      }
      const authOpts: any = {
         rpcUrl: input.rpcUrl,
@@ -182,12 +181,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      addWarning(authResult.warnings);
 
      // Intent
-     let opSource: string | undefined;
-     if (innerTx.operations[0] && innerTx.operations[0].type === 'invokeHostFunction') {
-         opSource = innerTx.operations[0].source;
-     }
-     const effectiveSource = opSource || tx.source;
-     const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress, effectiveSource);
+     const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress);
      addWarning(intentResult.warnings);
 
      const summary = generateSummary(invocation, auth, effects, simulation, input.signerAddress, input.options?.localeStrings);

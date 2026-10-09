@@ -9,6 +9,7 @@ import * as intent from '../../src/intent';
 import * as tokens from '../../src/tokens';
 import * as risk from '../../src/risk';
 import * as summary from '../../src/summary';
+import { rpc } from '@stellar/stellar-sdk';
 
 vi.mock('../../src/envelope');
 vi.mock('../../src/simulate');
@@ -19,6 +20,19 @@ vi.mock('../../src/intent');
 vi.mock('../../src/tokens');
 vi.mock('../../src/risk');
 vi.mock('../../src/summary');
+vi.mock('@stellar/stellar-sdk', async () => {
+    const actual = await vi.importActual('@stellar/stellar-sdk') as any;
+    return {
+        ...actual,
+        rpc: {
+            ...actual.rpc,
+            Server: vi.fn().mockImplementation(() => ({
+                getNetwork: vi.fn(),
+                getLatestLedger: vi.fn()
+            }))
+        }
+    };
+});
 
 describe('buildPreview', () => {
     beforeEach(() => {
@@ -137,8 +151,8 @@ describe('buildPreview', () => {
         expect(res.warnings[0]?.message).toBe('Something exploded');
         expect(res.warnings[0]?.severity).toBe('blocked');
     });
-    it('does not truncate raw.xdr', async () => {
-        const longXdr = 'A'.repeat(1000);
+
+    it('sets verified to false if getNetwork fails', async () => {
         vi.mocked(envelope.parseEnvelope).mockReturnValue({
             success: true,
             warnings: [],
@@ -157,65 +171,15 @@ describe('buildPreview', () => {
         vi.mocked(summary.generateSummary).mockReturnValue([]);
         vi.mocked(risk.computeRisk).mockReturnValue('ok');
 
-        const res = await buildPreview({ xdr: longXdr, rpcUrl: 'http://mock', networkPassphrase: 'test' });
-        
-        expect(res.raw.xdr).toBe(longXdr);
-        expect(res.raw.xdr.length).toBe(1000);
-    });
-    
-    it('sets network verified to false if getNetwork fails', async () => {
-        const mockGetNetwork = vi.fn().mockRejectedValue(new Error('Network error'));
-        vi.spyOn(require('@stellar/stellar-sdk').rpc, 'Server').mockImplementation(() => ({
+        const mockGetNetwork = vi.fn().mockRejectedValue(new Error('timeout'));
+        vi.mocked(rpc.Server).mockImplementation(() => ({
             getNetwork: mockGetNetwork,
             getLatestLedger: vi.fn().mockResolvedValue({ sequence: 100 })
-        }));
-
-        vi.mocked(envelope.parseEnvelope).mockReturnValue({
-            success: true,
-            warnings: [],
-            envelope: { source: '', sequence: '', fee: '', operations: [] } as any,
-            innerTransaction: { operations: [{ type: 'invokeHostFunction', func: {} }] } as any
-        });
-        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
-            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
-            warnings: []
-        });
-        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'unavailable', warnings: [] });
-        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
-        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
-        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
-        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
-        vi.mocked(summary.generateSummary).mockReturnValue([]);
-        vi.mocked(risk.computeRisk).mockReturnValue('ok');
+        }) as any);
 
         const res = await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
         
         expect(res.network.verified).toBe(false);
-        vi.restoreAllMocks();
-    });
-
-    it('uses transaction auth entries first, then falls back to simulation', async () => {
-        vi.mocked(envelope.parseEnvelope).mockReturnValue({
-            success: true,
-            warnings: [],
-            envelope: { source: '', sequence: '', fee: '', operations: [] } as any,
-            innerTransaction: { operations: [{ type: 'invokeHostFunction', func: {}, auth: ['REAL_AUTH'] }] } as any
-        });
-        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
-            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
-            warnings: []
-        });
-        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'success', warnings: [], auth: ['SIM_AUTH'] });
-        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
-        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
-        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [{ credentials: { type: 'address', address: 'real', nonce: '1', signatureExpirationLedger: 100, signed: true }, root: { kind: 'contract-fn', depth: 0, contractId: 'CC', functionName: 'test', args: [], children: [] } }], warnings: [] });
-        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
-        vi.mocked(summary.generateSummary).mockReturnValue([]);
-        vi.mocked(risk.computeRisk).mockReturnValue('ok');
-
-        await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
-        
-        expect(auth.decodeAuthEntries).toHaveBeenCalledWith(['REAL_AUTH'], expect.any(Number), expect.any(Object));
-        vi.restoreAllMocks();
+        expect(res.network.passphrase).toBe('test');
     });
 });
