@@ -192,7 +192,10 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
         w.severity = WARNING_SEVERITY[w.code];
      }
 
-     const risk = computeRisk(warnings);
+     const hasIntentMismatch = intentResult.warnings.some(w => w.code === 'INTENT_MISMATCH' || w.code === 'INTENT_UNVERIFIABLE' || w.code === 'INTENT_SPEND_EXCEEDED' || w.code === 'INTENT_UNEXPECTED_AUTH');
+     const intentVerified = !!input.intent && !hasIntentMismatch;
+
+     const risk = computeRisk(warnings, intentVerified);
 
      const preview = {
         version: 1 as const,

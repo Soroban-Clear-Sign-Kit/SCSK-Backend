@@ -18,6 +18,24 @@ describe('risk computation', () => {
     expect(computeRisk([
       { code: 'CLASSIC_OP_NOT_DECODED', message: 'review' },
       { code: 'ENVELOPE_MALFORMED', message: 'blocked' }
-    ])).toBe('blocked');
+    ], false)).toBe('blocked');
+  });
+
+  it('clears SPEC_UNAVAILABLE, VALUE_TOO_DEEP, and RESTORE_REQUIRED if intent is verified', () => {
+    expect(computeRisk([
+      { code: 'SPEC_UNAVAILABLE', message: 'test' },
+      { code: 'VALUE_TOO_DEEP', message: 'test' },
+      { code: 'RESTORE_REQUIRED', message: 'test' }
+    ], true)).toBe('ok');
+  });
+
+  it('does not clear UNSUPPORTED_SCVAL or CLASSIC_OP_NOT_DECODED if intent is verified', () => {
+    expect(computeRisk([
+      { code: 'UNSUPPORTED_SCVAL', message: 'test' }
+    ], true)).toBe('review');
+
+    expect(computeRisk([
+      { code: 'CLASSIC_OP_NOT_DECODED', message: 'test' }
+    ], true)).toBe('review');
   });
 });
