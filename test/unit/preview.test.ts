@@ -193,4 +193,29 @@ describe('buildPreview', () => {
         expect(res.network.verified).toBe(false);
         vi.restoreAllMocks();
     });
+
+    it('uses transaction auth entries first, then falls back to simulation', async () => {
+        vi.mocked(envelope.parseEnvelope).mockReturnValue({
+            success: true,
+            warnings: [],
+            envelope: { source: '', sequence: '', fee: '', operations: [] } as any,
+            innerTransaction: { operations: [{ type: 'invokeHostFunction', func: {}, auth: ['REAL_AUTH'] }] } as any
+        });
+        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
+            warnings: []
+        });
+        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'success', warnings: [], auth: ['SIM_AUTH'] });
+        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
+        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [{ credentials: { type: 'address', address: 'real', nonce: '1', signatureExpirationLedger: 100, signed: true }, root: { kind: 'contract-fn', depth: 0, contractId: 'CC', functionName: 'test', args: [], children: [] } }], warnings: [] });
+        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+        vi.mocked(summary.generateSummary).mockReturnValue([]);
+        vi.mocked(risk.computeRisk).mockReturnValue('ok');
+
+        await buildPreview({ xdr: 'ok', rpcUrl: 'http://mock', networkPassphrase: 'test' });
+        
+        expect(auth.decodeAuthEntries).toHaveBeenCalledWith(['REAL_AUTH'], expect.any(Number), expect.any(Object));
+        vi.restoreAllMocks();
+    });
 });
