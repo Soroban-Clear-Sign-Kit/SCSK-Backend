@@ -90,9 +90,9 @@ export function verifyIntent(
   if (intent.allowedContracts && signerAddress) {
      const allowed = new Set(intent.allowedContracts.map(c => normalize(c)));
      for (const entry of auth) {
-        const isAddressMatch = entry.credentials.type === 'address' && entry.credentials.address === signerAddress;
-        const isSourceMatch = entry.credentials.type === 'source-account' && sourceAccount === signerAddress;
-        if (isAddressMatch || isSourceMatch) {
+        const isSigner = (entry.credentials.type === 'address' && entry.credentials.address === signerAddress) || 
+                         (entry.credentials.type === 'source-account' && signerAddress === sourceAccount);
+        if (isSigner) {
            const walk = (node: any) => {
               if (node.contractId && !allowed.has(normalize(node.contractId))) {
                  warnings.push({ code: 'INTENT_UNEXPECTED_AUTH', message: `Signer authorizes unexpected contract ${node.contractId}` });

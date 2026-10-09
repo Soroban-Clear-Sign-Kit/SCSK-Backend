@@ -182,7 +182,7 @@ export async function buildPreview(input: BuildPreviewInput): Promise<ClearSignP
      addWarning(authResult.warnings);
 
      // Intent
-     const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress);
+     const intentResult = verifyIntent(input.intent, invocation, auth, effects, input.signerAddress, tx.source);
      addWarning(intentResult.warnings);
 
      const summary = generateSummary(invocation, auth, effects, simulation, input.signerAddress, input.options?.localeStrings);

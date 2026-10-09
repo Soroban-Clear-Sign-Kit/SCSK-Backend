@@ -103,6 +103,23 @@ describe('intent verification', () => {
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'INTENT_UNEXPECTED_AUTH' }));
   });
 
+  it('validates allowed contracts for source-account credentials', () => {
+    const intent: Intent = {
+      contractId: 'C123',
+      functionName: 'transfer',
+      allowedContracts: ['C123']
+    };
+    const auth: AuthEntry[] = [
+      {
+        credentials: { type: 'source-account' },
+        root: { contractId: 'C123', functionName: 'transfer', args: [], children: [ { contractId: 'C999' } ] } as any
+      }
+    ];
+    // G123 is the signer and the tx source account
+    const { warnings } = verifyIntent(intent, defaultInvocation, auth, [], 'G123', 'G123');
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'INTENT_UNEXPECTED_AUTH' }));
+  });
+
   it('fails on argument value mismatch', () => {
     const intent: Intent = {
       contractId: 'C123',
@@ -131,21 +148,5 @@ describe('intent verification', () => {
     };
     const { warnings } = verifyIntent(intent, inv, [], [], 'G123');
     expect(warnings).toEqual([]);
-  });
-
-  it('validates allowed contracts for source account credentials', () => {
-    const intent: Intent = {
-      contractId: 'C123',
-      functionName: 'transfer',
-      allowedContracts: ['C123']
-    };
-    const auth: AuthEntry[] = [
-      {
-        credentials: { type: 'source-account' } as any,
-        root: { contractId: 'C123', functionName: 'transfer', args: [], children: [ { contractId: 'C999' } ] } as any
-      }
-    ];
-    const { warnings } = verifyIntent(intent, defaultInvocation, auth, [], 'G123', 'G123');
-    expect(warnings).toContainEqual(expect.objectContaining({ code: 'INTENT_UNEXPECTED_AUTH' }));
   });
 });
