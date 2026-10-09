@@ -126,7 +126,10 @@ async function readContractNumber(
   let timerId: NodeJS.Timeout;
   const simulatePromise = server.simulateTransaction(tx);
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(() => reject(new Error("RPC Timeout")), RPC_TIMEOUT_MS);
+    timerId = setTimeout(
+      () => reject(new Error("RPC Timeout")),
+      RPC_TIMEOUT_MS,
+    );
   });
 
   try {
@@ -167,7 +170,10 @@ async function readContractString(
   let timerId: NodeJS.Timeout;
   const simulatePromise = server.simulateTransaction(tx);
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(() => reject(new Error("RPC Timeout")), RPC_TIMEOUT_MS);
+    timerId = setTimeout(
+      () => reject(new Error("RPC Timeout")),
+      RPC_TIMEOUT_MS,
+    );
   });
 
   try {
