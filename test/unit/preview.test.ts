@@ -137,4 +137,29 @@ describe('buildPreview', () => {
         expect(res.warnings[0]?.message).toBe('Something exploded');
         expect(res.warnings[0]?.severity).toBe('blocked');
     });
+    it('does not truncate raw.xdr', async () => {
+        const longXdr = 'A'.repeat(1000);
+        vi.mocked(envelope.parseEnvelope).mockReturnValue({
+            success: true,
+            warnings: [],
+            envelope: { source: '', sequence: '', fee: '', operations: [] } as any,
+            innerTransaction: { operations: [{ type: 'invokeHostFunction', func: {} }] } as any
+        });
+        vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+            invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
+            warnings: []
+        });
+        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'unavailable', warnings: [] });
+        vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
+        vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+        vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
+        vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+        vi.mocked(summary.generateSummary).mockReturnValue([]);
+        vi.mocked(risk.computeRisk).mockReturnValue('ok');
+
+        const res = await buildPreview({ xdr: longXdr, rpcUrl: 'http://mock', networkPassphrase: 'test' });
+        
+        expect(res.raw.xdr).toBe(longXdr);
+        expect(res.raw.xdr.length).toBe(1000);
+    });
 });
