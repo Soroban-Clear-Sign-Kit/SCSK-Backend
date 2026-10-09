@@ -194,7 +194,7 @@ describe('buildPreview', () => {
             invocation: { contractId: 'CC', functionName: 'test', args: [], specSource: 'none' },
             warnings: []
         });
-        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'success', auth: ['sim-auth'], latestLedger: 100, warnings: [], events: [] });
+        vi.mocked(simulate.simulateTransaction).mockResolvedValue({ status: 'success', auth: ['sim-auth' as any], latestLedger: 100, warnings: [], events: [] });
         vi.mocked(effects.extractTokenEffects).mockReturnValue({ effects: [], warnings: [] });
         vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
         vi.mocked(auth.decodeAuthEntries).mockResolvedValue({ auth: [], warnings: [] });
