@@ -89,32 +89,13 @@ export async function loadSpec(
   });
 
   try {
-    // 1. Check if we already know the wasm hash or if it's a known SAC
-    const cachedHash = _wasmHashCache.get(networkKey);
-    if (cachedHash === "SAC") {
-      return { spec: null, source: "sac-builtin", warnings };
-    }
-
-    if (cachedHash && _specCache.get(`${networkKey}-${cachedHash}`)) {
-      return {
-        spec: _specCache.get(`${networkKey}-${cachedHash}`)!,
-        source: "wasm",
-        warnings,
-      };
-    }
-
-    // 2. Fetch the contract instance to see its executable type and get the wasmHash
+    // 1. Fetch the contract instance to see its executable type and get the wasmHash
     const instance = await server.getContractInstance(contractId);
 
-    // Check if it's a SAC (executable type == ContractExecutableTypeToken)
-    // Wait, getContractInstance returns a parsed XDR object or a wrapper?
-    // In @stellar/stellar-sdk 17.2, rpc.Server.getContractInstance returns ContractInstance.
     let isSac = false;
     let wasmHashId: string | undefined;
 
     if ("executable" in instance) {
-      // In stellar-sdk, instance might be `xdr.ContractInstance` or similar object.
-      // xdr.ContractExecutable has switch().name or similar.
       const executable = (instance as any).executable;
       if (typeof executable?.switch === "function") {
         const type = executable.switch();
@@ -131,6 +112,15 @@ export async function loadSpec(
     if (isSac) {
       _wasmHashCache.set(networkKey, "SAC");
       return { spec: null, source: "sac-builtin", warnings };
+    }
+
+    // 2. Check if we already have the spec for this exact wasmHash
+    if (wasmHashId && _specCache.get(`${networkKey}-${wasmHashId}`)) {
+      return {
+        spec: _specCache.get(`${networkKey}-${wasmHashId}`)!,
+        source: "wasm",
+        warnings,
+      };
     }
 
     // 3. Fetch Wasm by contract ID (or by hash)

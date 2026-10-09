@@ -53,9 +53,49 @@ describe("spec caching", () => {
 
     const res2 = await loadSpec(contractId, opts);
     expect(res2.source).toBe("wasm");
-    // should not have called network again
+    // Should call network again for instance to check hash
+    expect(mockGetContractInstance).toHaveBeenCalledTimes(2);
+    // But should NOT fetch the Wasm bytes again
+    expect(mockGetContractWasmByContractId).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches new Wasm if the contract is upgraded (wasmHash changes)", async () => {
+    const mockWasm1 = Buffer.alloc(10);
+    const mockWasm2 = Buffer.alloc(20);
+    
+    let getInstCount = 0;
+    const mockGetContractInstance = vi.fn().mockImplementation(() => {
+      getInstCount++;
+      return { executable: { wasmHash: getInstCount === 1 ? "123" : "456" } };
+    });
+    
+    let getWasmCount = 0;
+    const mockGetContractWasmByContractId = vi.fn().mockImplementation(() => {
+      getWasmCount++;
+      return getWasmCount === 1 ? mockWasm1 : mockWasm2;
+    });
+
+    (rpc.Server as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      function () {
+        return {
+          getContractInstance: mockGetContractInstance,
+          getContractWasmByContractId: mockGetContractWasmByContractId,
+        };
+      },
+    );
+
+    const contractId = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB";
+    const opts = { rpcUrl: "http://localhost" };
+
+    const res1 = await loadSpec(contractId, opts);
+    expect(res1.source).toBe("wasm");
     expect(mockGetContractInstance).toHaveBeenCalledTimes(1);
     expect(mockGetContractWasmByContractId).toHaveBeenCalledTimes(1);
+
+    const res2 = await loadSpec(contractId, opts);
+    expect(res2.source).toBe("wasm");
+    expect(mockGetContractInstance).toHaveBeenCalledTimes(2);
+    expect(mockGetContractWasmByContractId).toHaveBeenCalledTimes(2);
   });
 
   it("uses injected spec if available", async () => {
@@ -114,8 +154,8 @@ describe("spec caching", () => {
 
     const res2 = await loadSpec(contractId, opts);
     expect(res2.source).toBe("sac-builtin");
-    // second time it should just use cache, so network called once
-    expect(mockGetContractInstance).toHaveBeenCalledTimes(1);
+    // Should call network again for instance to verify it is still SAC
+    expect(mockGetContractInstance).toHaveBeenCalledTimes(2);
   });
 
   it("handles RPC errors", async () => {
