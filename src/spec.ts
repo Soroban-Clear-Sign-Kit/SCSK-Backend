@@ -38,21 +38,16 @@ class LruCache<K, V> {
   }
 }
 
-// The spec requires caching keyed by networkPassphrase + contractId + wasmHash
-// However, we don't always know wasmHash without a network fetch.
-// We will cache by networkPassphrase + contractId for simplicity of avoiding fetches,
-// or if we must fetch instance first, we can cache the wasm by wasmHash.
-// Wait, to follow "networkPassphrase + contractId + wasmHash" strictly:
-// We can cache the instance data: (networkPassphrase + contractId) -> wasmHash.
-// And cache specs: wasmHash -> contract.Spec.
+// Caching is keyed by networkPassphrase + contractId + wasmHash.
+// The wasmHash is only known after fetching the contract instance, so two caches are kept:
+// - _wasmHashCache: (networkPassphrase + contractId) -> wasmHash
+// - _specCache: (networkPassphrase + contractId + wasmHash) -> contract.Spec
 export const _specCache = new LruCache<string, contract.Spec>(64);
 export const _wasmHashCache = new LruCache<string, string>(64);
 
-// To handle SAC (no Wasm), we need a placeholder spec for SEP-41.
-// We can define it by constructing a dummy Wasm, or by providing the SAC spec bytes.
-// But since SAC functions are known, we can also intercept them in invocation decoding.
-// Actually, stellar-sdk might have a built-in SAC spec we can parse.
-// We'll return source: 'sac-builtin' and spec: null if it's SAC, and handle SEP-41 decoding in invocation.ts.
+// SAC (Stellar Asset Contract) instances have no Wasm, so there is no spec to load.
+// For those, loadSpec returns source: 'sac-builtin' with spec: null, and SEP-41 decoding
+// is handled in invocation.ts using SAC_FUNCTIONS below.
 
 export async function loadSpec(
   contractId: string,
@@ -134,7 +129,7 @@ export async function loadSpec(
       return { spec: null, source: "none", warnings };
     }
 
-    // wasmResponse could be a Buffer or an object. Let's assume it's a buffer or has wasmBytes.
+    // wasmResponse is either a Buffer or an object carrying wasmBytes.
     const wasmBytes = Buffer.isBuffer(wasmResponse)
       ? wasmResponse
       : (wasmResponse as any).wasmBytes;
@@ -148,13 +143,11 @@ export async function loadSpec(
 
     const spec = contract.Spec.fromWasm(Buffer.from(wasmBytes));
 
-    // Determine a hash for caching. If we didn't get one from instance, use a dummy or compute it.
+    // Determine a hash for caching. If the instance did not give one, derive a stand-in from the Wasm bytes.
     const finalHash =
       wasmHashId || Buffer.from(wasmBytes).toString("base64").slice(0, 16);
 
-    // Cache it keyed by networkPassphrase + contractId + wasmHash
-    // Actually, the spec says "keyed by networkPassphrase + contractId + wasmHash"
-    // So the cache key is exactly that.
+    // Cache keyed by networkPassphrase + contractId + wasmHash.
     const fullKey = `${networkKey}-${finalHash}`;
     _specCache.set(fullKey, spec);
     _wasmHashCache.set(networkKey, finalHash);
