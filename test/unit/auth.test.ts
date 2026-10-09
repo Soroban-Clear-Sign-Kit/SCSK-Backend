@@ -324,4 +324,34 @@ describe('decodeAuthEntries', () => {
         const res = await decodeAuthEntries(entries, 100, { rpcUrl: '', networkPassphrase: '' });
         expect((res.auth[0]?.root as any)?.args?.[0]?.name).toBeNull();
     });
+    it('returns AUTH_UNKNOWN_CONTRACT for missing spec on non-top-level contract', async () => {
+        vi.mocked(spec.loadSpec).mockResolvedValue({ source: 'none', spec: null, warnings: [] });
+        const res = await decodeAuthEntries([
+            {
+                credentials: { type: 'sorobanCredentialsSourceAccount' },
+                rootInvocation: {
+                    function: { type: 'sorobanAuthorizedFunctionTypeContractFn', contractFn: { contractAddress: Address.contract(Buffer.alloc(32, 2)).toScAddress(), functionName: 'test', args: [] } },
+                    subInvocations: []
+                }
+            }
+        ], 50, { topLevelContractId: Address.contract(Buffer.alloc(32, 1)).toString() });
+        expect(res.warnings).toContainEqual(expect.objectContaining({ code: 'AUTH_UNKNOWN_CONTRACT' }));
+    });
+
+    it('skips children and does not return AUTH_UNKNOWN_CONTRACT for top-level contract', async () => {
+        vi.mocked(spec.loadSpec).mockResolvedValue({ source: 'none', spec: null, warnings: [] });
+        const res = await decodeAuthEntries([
+            {
+                credentials: { type: 'sorobanCredentialsSourceAccount' },
+                rootInvocation: {
+                    function: { type: 'sorobanAuthorizedFunctionTypeContractFn', contractFn: { contractAddress: Address.contract(Buffer.alloc(32, 1)).toScAddress(), functionName: 'test', args: [] } },
+                    subInvocations: [
+                        { function: { type: 'sorobanAuthorizedFunctionTypeContractFn', contractFn: { contractAddress: Address.contract(Buffer.alloc(32, 3)).toScAddress(), functionName: 'test', args: [] } }, subInvocations: [] }
+                    ]
+                }
+            }
+        ], 50, { topLevelContractId: Address.contract(Buffer.alloc(32, 1)).toString() });
+        expect(res.warnings).not.toContainEqual(expect.objectContaining({ code: 'AUTH_UNKNOWN_CONTRACT' }));
+        expect(res.auth[0].root.children).toEqual([]); // children should be skipped!
+    });
 });
