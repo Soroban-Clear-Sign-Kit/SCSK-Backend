@@ -69,11 +69,7 @@ export async function buildPreview(
     warns: { code: WarningCode; message: string; path?: string }[],
   ) => {
     for (const w of warns) {
-      warnings.push({
-        ...w,
-        severity: w.code === "INTERNAL_ERROR" ? "blocked" : "review",
-      }); // Risk will map properly, we'll fix severity in risk.ts or here.
-      // Actually WARNING_SEVERITY should be imported.
+      warnings.push({ ...w, severity: WARNING_SEVERITY[w.code] });
     }
   };
 
@@ -232,11 +228,6 @@ export async function buildPreview(
       input.signerAddress,
       input.options?.localeStrings,
     );
-
-    // Fix severities
-    for (const w of warnings) {
-      w.severity = WARNING_SEVERITY[w.code];
-    }
 
     const hasIntentMismatch = intentResult.warnings.some(
       (w) =>
