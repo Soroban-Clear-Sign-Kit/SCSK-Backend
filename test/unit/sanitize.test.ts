@@ -38,4 +38,11 @@ describe('sanitization', () => {
     const res = sanitizeRecursive(obj);
     expect(res.hex).toBe('00\u0000FF');
   });
+
+  it('leaves xdr fields alone and does not truncate them', () => {
+    const longString = 'a'.repeat(600);
+    const obj = { xdr: longString };
+    const res = sanitizeRecursive(obj);
+    expect(res.xdr).toBe(longString);
+  });
 });
