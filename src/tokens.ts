@@ -10,6 +10,7 @@ import {
 import { BalanceDelta } from "./types.js";
 import { WarningCode } from "./errors.js";
 import { RPC_TIMEOUT_MS } from "./limits.js";
+import { withTimeout } from "./timeout.js";
 
 export interface TokenMetadataOptions {
   rpcUrl: string;
@@ -123,33 +124,23 @@ async function readContractNumber(
     .setTimeout(0)
     .build();
 
-  let timerId: NodeJS.Timeout;
-  const simulatePromise = server.simulateTransaction(tx);
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(
-      () => reject(new Error("RPC Timeout")),
-      RPC_TIMEOUT_MS,
-    );
-  });
-
-  try {
-    const response = await Promise.race([simulatePromise, timeoutPromise]);
-    if (
-      rpc.Api.isSimulationSuccess(response) &&
-      response.result &&
-      response.result.retval
-    ) {
-      const val: any = response.result.retval;
-      const valType =
-        typeof val.switch === "function" ? val.switch().name : val.type;
-      if (valType === "scvU32") {
-        return typeof val.u32 === "function" ? val.u32() : val.u32;
-      }
+  const response = await withTimeout(
+    server.simulateTransaction(tx),
+    RPC_TIMEOUT_MS,
+  );
+  if (
+    rpc.Api.isSimulationSuccess(response) &&
+    response.result &&
+    response.result.retval
+  ) {
+    const val: any = response.result.retval;
+    const valType =
+      typeof val.switch === "function" ? val.switch().name : val.type;
+    if (valType === "scvU32") {
+      return typeof val.u32 === "function" ? val.u32() : val.u32;
     }
-    return null;
-  } finally {
-    clearTimeout(timerId!);
   }
+  return null;
 }
 
 async function readContractString(
@@ -167,35 +158,25 @@ async function readContractString(
     .setTimeout(0)
     .build();
 
-  let timerId: NodeJS.Timeout;
-  const simulatePromise = server.simulateTransaction(tx);
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(
-      () => reject(new Error("RPC Timeout")),
-      RPC_TIMEOUT_MS,
-    );
-  });
-
-  try {
-    const response = await Promise.race([simulatePromise, timeoutPromise]);
-    if (
-      rpc.Api.isSimulationSuccess(response) &&
-      response.result &&
-      response.result.retval
-    ) {
-      const val: any = response.result.retval;
-      const valType =
-        typeof val.switch === "function" ? val.switch().name : val.type;
-      if (valType === "scvString") {
-        const v = typeof val.str === "function" ? val.str() : val.str;
-        return typeof v === "string" ? v : v.toString("utf8");
-      } else if (valType === "scvSymbol") {
-        const v = typeof val.sym === "function" ? val.sym() : val.sym;
-        return typeof v === "string" ? v : v.toString();
-      }
+  const response = await withTimeout(
+    server.simulateTransaction(tx),
+    RPC_TIMEOUT_MS,
+  );
+  if (
+    rpc.Api.isSimulationSuccess(response) &&
+    response.result &&
+    response.result.retval
+  ) {
+    const val: any = response.result.retval;
+    const valType =
+      typeof val.switch === "function" ? val.switch().name : val.type;
+    if (valType === "scvString") {
+      const v = typeof val.str === "function" ? val.str() : val.str;
+      return typeof v === "string" ? v : v.toString("utf8");
+    } else if (valType === "scvSymbol") {
+      const v = typeof val.sym === "function" ? val.sym() : val.sym;
+      return typeof v === "string" ? v : v.toString();
     }
-    return null;
-  } finally {
-    clearTimeout(timerId!);
   }
+  return null;
 }
