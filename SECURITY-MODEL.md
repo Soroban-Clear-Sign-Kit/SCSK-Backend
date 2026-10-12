@@ -19,14 +19,15 @@ The Soroban Clear-Sign Kit (SCSK) is designed with a strict, fail-closed securit
 5. **Simulated State Constraints**
    By wrapping `simulateTransaction` from the Soroban RPC, the kit inspects the real execution path of a transaction without submitting it. It strictly filters out events that do not stem from a successful contract call (`inSuccessfulContractCall: true`).
 
-## Risk Engine & Heuristics
+## Risk Engine
 
-The SCSK risk engine evaluates the parsed envelope and simulated effects to assign a risk score:
+Every decoding step contributes warnings. Each warning code has a fixed severity (`review` or `blocked`, see `WARNING_SEVERITY`), and the overall `risk` is derived from them:
 
-- **Low Risk:** Standard token transfers, known DEX interactions, and operations conforming to standard Stellar interfaces (e.g., SEP-41).
-- **Medium Risk:** Interactions with newly deployed, unverified contracts, or operations lacking complete contract specs.
-- **High Risk:** Operations that generate warnings during decoding (e.g., excessive argument limits, mismatched types, auth expiration approaching).
-- **Critical (Blocked):** Invalid XDR, unrecognized authentication credentials, cross-network transactions, or simulation failures indicating a revert.
+- **`ok`:** No warnings. Nothing the kit could not decode or verify.
+- **`review`:** At least one `review` warning and no `blocked` warnings, for example a missing contract spec, an extra contract in the auth tree, or an unusually high fee. The user should read the preview before signing.
+- **`blocked`:** At least one `blocked` warning: invalid XDR, a network mismatch, a failed or unavailable simulation, an expired or duplicated auth entry, an intent mismatch, or an internal error. Wallets should not offer to sign.
+
+A verified app-provided `Intent` can downgrade only `SPEC_UNAVAILABLE`, `VALUE_TOO_DEEP` and `RESTORE_REQUIRED`. It never clears a `blocked` warning.
 
 ## Threat Model Mitigation
 
