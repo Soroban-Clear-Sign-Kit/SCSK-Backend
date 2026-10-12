@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeRisk } from "../../src/risk.js";
+import { computeRisk, partitionWarnings } from "../../src/risk.js";
 import { WarningCode, WARNING_SEVERITY } from "../../src/errors.js";
 
 describe("risk computation", () => {
@@ -47,5 +47,34 @@ describe("risk computation", () => {
     expect(
       computeRisk([{ code: "CLASSIC_OP_NOT_DECODED", message: "test" }], true),
     ).toBe("review");
+  });
+});
+
+describe("partitionWarnings", () => {
+  const w = (code: string, severity: "review" | "blocked") => ({
+    code,
+    severity,
+    message: code,
+  });
+
+  it("splits warnings by severity and keeps their order", () => {
+    const res = partitionWarnings([
+      w("A", "review"),
+      w("B", "blocked"),
+      w("C", "review"),
+      w("D", "blocked"),
+    ]);
+    expect(res.blocked.map((x) => x.code)).toEqual(["B", "D"]);
+    expect(res.review.map((x) => x.code)).toEqual(["A", "C"]);
+  });
+
+  it("returns empty groups for no warnings", () => {
+    expect(partitionWarnings([])).toEqual({ blocked: [], review: [] });
+  });
+
+  it("does not mutate its input", () => {
+    const input = [w("A", "review"), w("B", "blocked")];
+    partitionWarnings(input);
+    expect(input.map((x) => x.code)).toEqual(["A", "B"]);
   });
 });
