@@ -15,6 +15,8 @@ import { withTimeout } from "./timeout.js";
 export interface SimulateOptions extends SpecLoaderOptions {
   rpcUrl: string;
   feeWarningMultiplier?: number;
+  /** Milliseconds to wait for the RPC before reporting the simulation as unavailable. */
+  timeoutMs?: number;
 }
 
 export interface SimulationResult {
@@ -43,7 +45,7 @@ export async function simulateTransaction(
   try {
     response = await withTimeout(
       server.simulateTransaction(innerTx),
-      RPC_TIMEOUT_MS,
+      opts.timeoutMs ?? RPC_TIMEOUT_MS,
     );
   } catch (err: any) {
     warnings.push({
