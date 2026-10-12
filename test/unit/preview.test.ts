@@ -525,3 +525,54 @@ describe("buildPreview RPC timeouts", () => {
     }
   });
 });
+
+describe("buildPreview debug logging", () => {
+  const explode = () =>
+    vi.mocked(envelope.parseEnvelope).mockImplementation(() => {
+      throw new Error("kaboom");
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: vi.fn().mockResolvedValue({ passphrase: "test" }),
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 1 }),
+        }) as any,
+    );
+  });
+
+  it("stays quiet about internal errors by default", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    explode();
+
+    const res = await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+    });
+
+    expect(res.warnings[0]?.code).toBe("INTERNAL_ERROR");
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("logs the stack of internal errors when options.debug is true", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    explode();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { debug: true },
+    });
+
+    expect(spy).toHaveBeenCalledWith(
+      "INTERNAL_ERROR Stack:",
+      expect.stringContaining("kaboom"),
+    );
+    spy.mockRestore();
+  });
+});
