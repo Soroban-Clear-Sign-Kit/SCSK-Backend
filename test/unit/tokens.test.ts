@@ -202,4 +202,34 @@ describe("resolveTokenMetadata", () => {
 
     vi.spyOn(rpc.Api, "isSimulationSuccess").mockRestore();
   });
+
+  it("reports unavailable metadata when the RPC exceeds timeoutMs", async () => {
+    vi.useFakeTimers();
+    try {
+      mockSimulate.mockImplementation(() => new Promise(() => {}));
+
+      const contractId = Address.contract(Buffer.alloc(32, 9)).toString();
+      const effects: BalanceDelta[] = [
+        {
+          tokenContractId: contractId,
+          account: Keypair.random().publicKey(),
+          delta: "1",
+        },
+      ];
+
+      const pending = resolveTokenMetadata(effects, {
+        rpcUrl: "http://mock",
+        networkPassphrase: "timeout-test-network",
+        sourceAccount: Keypair.random().publicKey(),
+        timeoutMs: 100,
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      const res = await pending;
+
+      expect(res.warnings[0]?.code).toBe("SIMULATION_UNAVAILABLE");
+      expect(res.warnings[0]?.message).toContain("RPC Timeout");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -16,6 +16,8 @@ export interface TokenMetadataOptions {
   rpcUrl: string;
   networkPassphrase: string;
   sourceAccount: string;
+  /** Milliseconds to wait for each metadata RPC call. Defaults to RPC_TIMEOUT_MS. */
+  timeoutMs?: number;
 }
 
 const metadataCache = new Map<string, { decimals: number; symbol: string }>();
@@ -126,7 +128,7 @@ async function readContractNumber(
 
   const response = await withTimeout(
     server.simulateTransaction(tx),
-    RPC_TIMEOUT_MS,
+    opts.timeoutMs ?? RPC_TIMEOUT_MS,
   );
   if (
     rpc.Api.isSimulationSuccess(response) &&
@@ -160,7 +162,7 @@ async function readContractString(
 
   const response = await withTimeout(
     server.simulateTransaction(tx),
-    RPC_TIMEOUT_MS,
+    opts.timeoutMs ?? RPC_TIMEOUT_MS,
   );
   if (
     rpc.Api.isSimulationSuccess(response) &&
