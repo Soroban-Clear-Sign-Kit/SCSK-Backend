@@ -479,3 +479,49 @@ describe("buildPreview options", () => {
     expect("timeoutMs" in simOpts!).toBe(false);
   });
 });
+
+describe("buildPreview RPC timeouts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not hang when getNetwork never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(envelope.parseEnvelope).mockReturnValue({
+        success: true,
+        warnings: [],
+        envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
+        innerTransaction: { operations: [] } as any,
+      });
+      vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
+        auth: [],
+        warnings: [],
+      });
+      vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+      vi.mocked(summary.generateSummary).mockReturnValue([]);
+      vi.mocked(risk.computeRisk).mockReturnValue("ok");
+      vi.mocked(rpc.Server).mockImplementation(
+        () =>
+          ({
+            getNetwork: vi.fn().mockReturnValue(new Promise(() => {})),
+            getLatestLedger: vi.fn().mockResolvedValue({ sequence: 5 }),
+          }) as any,
+      );
+
+      const pending = buildPreview({
+        xdr: "ok",
+        rpcUrl: "http://mock",
+        networkPassphrase: "test",
+        options: { rpcTimeoutMs: 500 },
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      const res = await pending;
+
+      expect(res.network.verified).toBe(false);
+      expect(res.risk).toBe("ok");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

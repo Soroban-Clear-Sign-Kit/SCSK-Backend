@@ -20,6 +20,8 @@ import { sanitizeRecursive } from "./sanitize.js";
 import { generateSummary } from "./summary.js";
 import { LocaleStrings } from "./locales/en.js";
 import { stripUndefined } from "./util.js";
+import { withTimeout } from "./timeout.js";
+import { RPC_TIMEOUT_MS } from "./limits.js";
 
 export interface BuildPreviewInput {
   xdr: string;
@@ -74,6 +76,8 @@ export async function buildPreview(
     }
   };
 
+  const rpcTimeoutMs = input.options?.rpcTimeoutMs ?? RPC_TIMEOUT_MS;
+
   try {
     const server = new rpc.Server(input.rpcUrl, {
       allowHttp: input.rpcUrl.startsWith("http://"),
@@ -81,7 +85,7 @@ export async function buildPreview(
     let networkVerified = false;
     let rpcNetwork: rpc.Api.GetNetworkResponse;
     try {
-      rpcNetwork = await server.getNetwork();
+      rpcNetwork = await withTimeout(server.getNetwork(), rpcTimeoutMs);
       if (
         rpcNetwork.passphrase &&
         rpcNetwork.passphrase !== input.networkPassphrase
@@ -160,7 +164,7 @@ export async function buildPreview(
         const server = new rpc.Server(input.rpcUrl, {
           allowHttp: input.rpcUrl.startsWith("http://"),
         });
-        const info = await server.getLatestLedger();
+        const info = await withTimeout(server.getLatestLedger(), rpcTimeoutMs);
         latestLedger = info.sequence;
       } catch (e) {
         // fallback
