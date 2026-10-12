@@ -9,7 +9,7 @@ import {
 } from "@stellar/stellar-sdk";
 import { BalanceDelta } from "./types.js";
 import { WarningCode } from "./errors.js";
-import { RPC_TIMEOUT_MS } from "./limits.js";
+import { RPC_TIMEOUT_MS, MAX_TOKEN_METADATA_CACHE_ENTRIES } from "./limits.js";
 import { withTimeout } from "./timeout.js";
 
 export interface TokenMetadataOptions {
@@ -21,6 +21,22 @@ export interface TokenMetadataOptions {
 }
 
 const metadataCache = new Map<string, { decimals: number; symbol: string }>();
+
+/** Empties the process-wide token metadata cache. */
+export function clearTokenMetadataCache(): void {
+  metadataCache.clear();
+}
+
+function cacheMetadata(
+  key: string,
+  meta: { decimals: number; symbol: string },
+): void {
+  if (metadataCache.size >= MAX_TOKEN_METADATA_CACHE_ENTRIES) {
+    const oldest = metadataCache.keys().next().value;
+    if (oldest !== undefined) metadataCache.delete(oldest);
+  }
+  metadataCache.set(key, meta);
+}
 
 export async function resolveTokenMetadata(
   effects: BalanceDelta[],
@@ -56,7 +72,7 @@ export async function resolveTokenMetadata(
 
         if (decimals !== null && symbol !== null) {
           meta = { decimals, symbol };
-          metadataCache.set(cacheKey, meta);
+          cacheMetadata(cacheKey, meta);
         } else {
           warnings.push({
             code: "TOKEN_METADATA_UNAVAILABLE",

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { resolveTokenMetadata, formatAmount } from "../../src/tokens";
+import {
+  resolveTokenMetadata,
+  formatAmount,
+  clearTokenMetadataCache,
+} from "../../src/tokens";
+import { MAX_TOKEN_METADATA_CACHE_ENTRIES } from "../../src/limits";
 import { rpc, xdr, Address, Keypair } from "@stellar/stellar-sdk";
 import { BalanceDelta } from "../../src/types";
 
@@ -231,5 +236,72 @@ describe("resolveTokenMetadata", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("token metadata cache", () => {
+  let calls = 0;
+  const effectFor = (n: number): BalanceDelta => ({
+    tokenContractId: Address.contract(
+      Buffer.from(n.toString(16).padStart(64, "0"), "hex"),
+    ).toString(),
+    account: Keypair.random().publicKey(),
+    delta: "1",
+  });
+  const opts = () => ({
+    rpcUrl: "http://mock",
+    networkPassphrase: "cache-test-network",
+    sourceAccount: Keypair.random().publicKey(),
+  });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    clearTokenMetadataCache();
+    calls = 0;
+    vi.spyOn(rpc.Api, "isSimulationSuccess").mockReturnValue(true);
+    vi.spyOn(rpc.Server.prototype, "simulateTransaction").mockImplementation(
+      async () => {
+        calls++;
+        // Each token is read as decimals (odd call) then symbol (even call).
+        return {
+          result: {
+            retval:
+              calls % 2 === 1
+                ? xdr.ScVal.scvU32(7)
+                : xdr.ScVal.scvSymbol("TKN"),
+          },
+          events: [],
+          latestLedger: 1,
+        } as any;
+      },
+    );
+  });
+
+  it("serves repeated lookups from the cache", async () => {
+    await resolveTokenMetadata([effectFor(1)], opts());
+    expect(calls).toBe(2);
+    await resolveTokenMetadata([effectFor(1)], opts());
+    expect(calls).toBe(2);
+  });
+
+  it("clearTokenMetadataCache forces a refetch", async () => {
+    await resolveTokenMetadata([effectFor(1)], opts());
+    clearTokenMetadataCache();
+    await resolveTokenMetadata([effectFor(1)], opts());
+    expect(calls).toBe(4);
+  });
+
+  it("evicts the oldest entry once the cache is full", async () => {
+    const total = MAX_TOKEN_METADATA_CACHE_ENTRIES + 1;
+    for (let i = 1; i <= total; i++) {
+      await resolveTokenMetadata([effectFor(i)], opts());
+    }
+    const before = calls;
+
+    await resolveTokenMetadata([effectFor(total)], opts());
+    expect(calls).toBe(before);
+
+    await resolveTokenMetadata([effectFor(1)], opts());
+    expect(calls).toBe(before + 2);
   });
 });
