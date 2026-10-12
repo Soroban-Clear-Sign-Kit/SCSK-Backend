@@ -143,6 +143,7 @@ export async function buildPreview(
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
         feeWarningMultiplier: input.options?.feeWarningMultiplier,
+        timeoutMs: input.options?.rpcTimeoutMs,
         specs: input.specs,
       });
 
@@ -171,11 +172,15 @@ export async function buildPreview(
       effects = effResult.effects;
       addWarning(effResult.warnings);
 
-      const metaResult = await resolveTokenMetadata(effects, {
-        rpcUrl: input.rpcUrl,
-        networkPassphrase: input.networkPassphrase,
-        sourceAccount: tx.source,
-      });
+      const metaResult = await resolveTokenMetadata(
+        effects,
+        stripUndefined({
+          rpcUrl: input.rpcUrl,
+          networkPassphrase: input.networkPassphrase,
+          sourceAccount: tx.source,
+          timeoutMs: input.options?.rpcTimeoutMs,
+        }),
+      );
       addWarning(metaResult.warnings);
     }
 

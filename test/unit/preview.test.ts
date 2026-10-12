@@ -374,3 +374,108 @@ describe("buildPreview", () => {
     expect(res.envelope.feeBump).toEqual({ feeSource: "S", fee: "200" });
   });
 });
+
+describe("buildPreview options", () => {
+  const passingEnvelope = () =>
+    vi.mocked(envelope.parseEnvelope).mockReturnValue({
+      success: true,
+      warnings: [],
+      envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
+      innerTransaction: {
+        source: "GSOURCE",
+        operations: [{ type: "invokeHostFunction", func: {} }],
+      } as any,
+    });
+
+  const arrange = (
+    server: { getNetwork?: any; getLatestLedger?: any } = {},
+  ) => {
+    passingEnvelope();
+    vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+      invocation: {
+        contractId: "CC",
+        functionName: "f",
+        args: [],
+        specSource: "none",
+      },
+      warnings: [],
+    });
+    vi.mocked(simulate.simulateTransaction).mockResolvedValue({
+      status: "success",
+      latestLedger: 100,
+      events: [],
+      auth: [],
+      warnings: [],
+    });
+    vi.mocked(effects.extractTokenEffects).mockReturnValue({
+      effects: [],
+      warnings: [],
+    });
+    vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+    vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
+      auth: [],
+      warnings: [],
+    });
+    vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+    vi.mocked(summary.generateSummary).mockReturnValue([]);
+    vi.mocked(risk.computeRisk).mockReturnValue("ok");
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: vi.fn().mockResolvedValue({ passphrase: "test" }),
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 1 }),
+          ...server,
+        }) as any,
+    );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("forwards rpcTimeoutMs to simulation", async () => {
+    arrange();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { rpcTimeoutMs: 1234 },
+    });
+
+    expect(simulate.simulateTransaction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ timeoutMs: 1234 }),
+    );
+  });
+
+  it("forwards rpcTimeoutMs to token metadata lookups", async () => {
+    arrange();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { rpcTimeoutMs: 4321 },
+    });
+
+    expect(tokens.resolveTokenMetadata).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ timeoutMs: 4321 }),
+    );
+  });
+
+  it("omits timeoutMs when rpcTimeoutMs is not set", async () => {
+    arrange();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+    });
+
+    const simOpts = vi.mocked(simulate.simulateTransaction).mock.calls[0]?.[1];
+    expect(simOpts).toBeDefined();
+    expect("timeoutMs" in simOpts!).toBe(false);
+  });
+});
