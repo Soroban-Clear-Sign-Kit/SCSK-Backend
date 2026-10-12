@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Soroban Clear-Sign Kit - Core decoding, XDR parsing, and transaction simulation engine",
   "license": "Apache-2.0",
+  "keywords": [
+    "stellar",
+    "soroban",
+    "clear-signing",
+    "transaction-preview",
+    "xdr",
+    "wallet-security"
+  ],
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -40,5 +48,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "engines": {
+    "node": ">=22"
+  }
 }
