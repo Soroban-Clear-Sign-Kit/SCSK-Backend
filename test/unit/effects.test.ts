@@ -281,4 +281,43 @@ describe("extractTokenEffects", () => {
       expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
     );
   });
+
+  it("warns instead of logging when an event's contract ID is invalid", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const events = [
+      new xdr.DiagnosticEvent({
+        inSuccessfulContractCall: true,
+        event: new xdr.ContractEvent({
+          ext: xdr.ExtensionPoint.v0(),
+          contractId: Buffer.alloc(5) as any,
+          type: xdr.ContractEventType.contract,
+          body: xdr.ContractEventBody.v0(
+            new xdr.ContractEventV0({
+              topics,
+              data: xdr.ScVal.scvI128(
+                new xdr.Int128Parts({
+                  hi: xdr.Int64.fromString("0"),
+                  lo: xdr.Uint64.fromString("5"),
+                }),
+              ),
+            }),
+          ),
+        }),
+      }),
+    ];
+
+    const res = extractTokenEffects(events);
+
+    expect(res.effects).toEqual([]);
+    expect(res.warnings).toContainEqual(
+      expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
+    );
+  });
 });

@@ -2,10 +2,20 @@
   "name": "@clearsign/core",
   "version": "0.1.0",
   "description": "Soroban Clear-Sign Kit - Core decoding, XDR parsing, and transaction simulation engine",
+  "license": "Apache-2.0",
+  "keywords": [
+    "stellar",
+    "soroban",
+    "clear-signing",
+    "transaction-preview",
+    "xdr",
+    "wallet-security"
+  ],
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,7 +30,11 @@
     "format:check": "prettier --check .",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
-    "test:coverage": "vitest run --dir test/unit --coverage"
+    "test:coverage": "vitest run --dir test/unit --coverage",
+    "lint:fix": "eslint src test --fix",
+    "format": "prettier --write .",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
+    "prepublishOnly": "pnpm run check && pnpm run build"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "17.2.1"
@@ -38,5 +52,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "engines": {
+    "node": ">=22"
+  }
 }

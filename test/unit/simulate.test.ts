@@ -89,6 +89,32 @@ describe("simulateTransaction", () => {
     }
   });
 
+  it("honours a custom timeoutMs", async () => {
+    vi.useFakeTimers();
+    try {
+      const tx = new TransactionBuilder(account, {
+        fee: "100",
+        networkPassphrase: Networks.TESTNET,
+      })
+        .setTimeout(10)
+        .build();
+      (tx as any)._timeout = true;
+
+      const pending = simulateTransaction(tx, {
+        rpcUrl: "http://mock",
+        networkPassphrase: Networks.TESTNET,
+        timeoutMs: 250,
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      const sim = await pending;
+
+      expect(sim.status).toBe("unavailable");
+      expect(sim.warnings[0]?.message).toBe("RPC Timeout");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("clears the timeout timer once the RPC call settles", async () => {
     vi.useFakeTimers();
     try {

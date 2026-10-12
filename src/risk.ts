@@ -22,3 +22,15 @@ export function computeRisk(
   }
   return hasReview ? "review" : "ok";
 }
+
+/** Splits warnings by severity, preserving their original order within each group. */
+export function partitionWarnings<T extends { severity: "review" | "blocked" }>(
+  warnings: readonly T[],
+): { blocked: T[]; review: T[] } {
+  const blocked: T[] = [];
+  const review: T[] = [];
+  for (const w of warnings) {
+    (w.severity === "blocked" ? blocked : review).push(w);
+  }
+  return { blocked, review };
+}
