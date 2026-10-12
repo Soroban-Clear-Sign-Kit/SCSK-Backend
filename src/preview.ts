@@ -19,6 +19,7 @@ import { computeRisk } from "./risk.js";
 import { sanitizeRecursive } from "./sanitize.js";
 import { generateSummary } from "./summary.js";
 import { LocaleStrings } from "./locales/en.js";
+import { stripUndefined } from "./util.js";
 
 export interface BuildPreviewInput {
   xdr: string;
@@ -118,14 +119,11 @@ export async function buildPreview(
     let invocation: Invocation | undefined;
     const op = innerTx.operations[0];
     if (op) {
-      const invOpts: any = {
+      const invOpts = stripUndefined({
         networkPassphrase: input.networkPassphrase,
         rpcUrl: input.rpcUrl,
         specs: input.specs,
-      };
-      Object.keys(invOpts).forEach(
-        (k) => invOpts[k] === undefined && delete invOpts[k],
-      );
+      });
       const invResult = await decodeInvocation(op, invOpts);
       invocation = invResult.invocation;
       addWarning(invResult.warnings);
@@ -141,15 +139,12 @@ export async function buildPreview(
     );
 
     if (hasInvoke) {
-      const simOpts: any = {
+      const simOpts = stripUndefined({
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
         feeWarningMultiplier: input.options?.feeWarningMultiplier,
         specs: input.specs,
-      };
-      Object.keys(simOpts).forEach(
-        (k) => simOpts[k] === undefined && delete simOpts[k],
-      );
+      });
 
       simulation = await simulateTransaction(tx, simOpts);
       addWarning(simulation.warnings);
@@ -194,17 +189,14 @@ export async function buildPreview(
     if (authXdr.length === 0 && simulation.auth) {
       authXdr = simulation.auth;
     }
-    const authOpts: any = {
+    const authOpts = stripUndefined({
       rpcUrl: input.rpcUrl,
       networkPassphrase: input.networkPassphrase,
       minAuthValidityLedgers: input.options?.minAuthValidityLedgers,
       signerAddress: input.signerAddress,
       topLevelContractId: invocation?.contractId,
       specs: input.specs,
-    };
-    Object.keys(authOpts).forEach(
-      (k) => authOpts[k] === undefined && delete authOpts[k],
-    );
+    });
 
     const authResult = await decodeAuthEntries(authXdr, latestLedger, authOpts);
     auth = authResult.auth;
