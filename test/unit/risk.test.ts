@@ -78,3 +78,48 @@ describe("partitionWarnings", () => {
     expect(input.map((x) => x.code)).toEqual(["A", "B"]);
   });
 });
+
+describe("computeRisk edge cases", () => {
+  it("stays blocked when intent is verified", () => {
+    expect(
+      computeRisk([{ code: "SIMULATION_FAILED", message: "x" }], true),
+    ).toBe("blocked");
+  });
+
+  it("blocked wins even when review warnings come first", () => {
+    expect(
+      computeRisk(
+        [
+          { code: "SPEC_UNAVAILABLE", message: "a" },
+          { code: "AUTH_EXPIRED", message: "b" },
+        ],
+        false,
+      ),
+    ).toBe("blocked");
+  });
+
+  it("is ok when intent clears every review warning present", () => {
+    expect(
+      computeRisk(
+        [
+          { code: "SPEC_UNAVAILABLE", message: "a" },
+          { code: "VALUE_TOO_DEEP", message: "b" },
+          { code: "RESTORE_REQUIRED", message: "c" },
+        ],
+        true,
+      ),
+    ).toBe("ok");
+  });
+
+  it("is still review if only some warnings are cleared by intent", () => {
+    expect(
+      computeRisk(
+        [
+          { code: "SPEC_UNAVAILABLE", message: "a" },
+          { code: "AUTH_EXTRA_CONTRACT", message: "b" },
+        ],
+        true,
+      ),
+    ).toBe("review");
+  });
+});
