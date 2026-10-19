@@ -199,6 +199,43 @@ describe("buildPreview", () => {
     expect(res.warnings[0]?.severity).toBe("blocked");
   });
 
+  it("does not log internal errors when options.debug is unset", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(envelope.parseEnvelope).mockImplementation(() => {
+      throw new Error("hidden error");
+    });
+
+    const res = await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+    });
+
+    expect(res.warnings[0]?.code).toBe("INTERNAL_ERROR");
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("logs internal error stack when options.debug is true", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(envelope.parseEnvelope).mockImplementation(() => {
+      throw new Error("visible error");
+    });
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { debug: true },
+    });
+
+    expect(spy).toHaveBeenCalledWith(
+      "INTERNAL_ERROR Stack:",
+      expect.stringContaining("visible error"),
+    );
+    spy.mockRestore();
+  });
+
   it("sets verified to false if getNetwork fails", async () => {
     vi.mocked(envelope.parseEnvelope).mockReturnValue({
       success: true,

@@ -282,7 +282,9 @@ export async function buildPreview(
 
     return sanitizeRecursive(preview) as ClearSignPreview;
   } catch (err: any) {
-    console.error("INTERNAL_ERROR Stack:", err.stack);
+    if (input.options?.debug) {
+      console.error("INTERNAL_ERROR Stack:", err.stack);
+    }
     const w = {
       code: "INTERNAL_ERROR" as WarningCode,
       message: err.message || "Unknown error",

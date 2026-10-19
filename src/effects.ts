@@ -55,13 +55,15 @@ export function extractTokenEffects(
     let contractId: string | null = null;
     if (eventContractId) {
       try {
+        if (eventContractId.length !== 32) {
+          throw new Error("contract ID must be 32 bytes");
+        }
         contractId = StrKey.encodeContract(Buffer.from(eventContractId));
-      } catch (err) {
-        console.error(
-          "encodeContract error. eventContractId:",
-          eventContractId,
-          err,
-        );
+      } catch {
+        warnings.push({
+          code: "EVENT_SHAPE_UNKNOWN",
+          message: "Skipped an event whose emitting contract ID is invalid",
+        });
       }
     }
     if (!contractId) continue;

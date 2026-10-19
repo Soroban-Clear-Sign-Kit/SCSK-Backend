@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { extractTokenEffects } from "../../src/effects.js";
 import { xdr } from "@stellar/stellar-sdk";
 
@@ -280,5 +280,47 @@ describe("extractTokenEffects", () => {
     expect(res.warnings).toContainEqual(
       expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
     );
+  });
+
+  it("warns instead of logging when an event's contract ID is invalid", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const events = [
+      new xdr.DiagnosticEvent({
+        inSuccessfulContractCall: true,
+        event: new xdr.ContractEvent({
+          ext: xdr.ExtensionPoint.v0(),
+          contractId: Buffer.alloc(5) as any,
+          type: xdr.ContractEventType.contract,
+          body: xdr.ContractEventBody.v0(
+            new xdr.ContractEventV0({
+              topics,
+              data: xdr.ScVal.scvI128(
+                new xdr.Int128Parts({
+                  hi: 0n,
+                  lo: 5n,
+                }),
+              ),
+            }),
+          ),
+        }),
+      }),
+    ];
+
+    const res = extractTokenEffects(events);
+
+    expect(res.effects).toEqual([]);
+    expect(res.warnings).toContainEqual(
+      expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
+    );
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
