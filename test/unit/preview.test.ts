@@ -9,7 +9,15 @@ import * as intent from "../../src/intent";
 import * as tokens from "../../src/tokens";
 import * as risk from "../../src/risk";
 import * as summary from "../../src/summary";
-import { rpc } from "@stellar/stellar-sdk";
+import {
+  rpc,
+  Keypair,
+  TransactionBuilder,
+  Account,
+  Networks,
+  Operation,
+  Asset,
+} from "@stellar/stellar-sdk";
 
 vi.mock("../../src/envelope");
 vi.mock("../../src/simulate");
@@ -64,6 +72,7 @@ describe("buildPreview", () => {
       warnings: [{ code: "NETWORK_MISMATCH", message: "mismatch" }],
       envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
       innerTransaction: { operations: [] } as any,
+      signatureBound: false,
     });
 
     const res = await buildPreview({
@@ -84,6 +93,7 @@ describe("buildPreview", () => {
       innerTransaction: {
         operations: [{ type: "invokeHostFunction", func: {} }],
       } as any,
+      signatureBound: false,
     });
 
     vi.mocked(invocation.decodeInvocation).mockResolvedValue({
@@ -141,6 +151,7 @@ describe("buildPreview", () => {
       innerTransaction: {
         operations: [{ type: "invokeHostFunction", func: {} }],
       } as any,
+      signatureBound: false,
     });
 
     // Return a warning to trigger lines 142-144
@@ -236,7 +247,7 @@ describe("buildPreview", () => {
     spy.mockRestore();
   });
 
-  it("sets verified to false if getNetwork fails", async () => {
+  it("sets rpcMatches to false if getNetwork fails", async () => {
     vi.mocked(envelope.parseEnvelope).mockReturnValue({
       success: true,
       warnings: [],
@@ -244,6 +255,7 @@ describe("buildPreview", () => {
       innerTransaction: {
         operations: [{ type: "invokeHostFunction", func: {} }],
       } as any,
+      signatureBound: false,
     });
     vi.mocked(invocation.decodeInvocation).mockResolvedValue({
       invocation: {
@@ -286,7 +298,7 @@ describe("buildPreview", () => {
       networkPassphrase: "test",
     });
 
-    expect(res.network.verified).toBe(false);
+    expect(res.network.rpcMatches).toBe(false);
     expect(res.network.passphrase).toBe("test");
   });
 
@@ -298,6 +310,7 @@ describe("buildPreview", () => {
       innerTransaction: {
         operations: [{ type: "invokeHostFunction", auth: ["tx-auth"] }],
       } as any,
+      signatureBound: false,
     });
     vi.mocked(invocation.decodeInvocation).mockResolvedValue({
       invocation: {
@@ -364,6 +377,7 @@ describe("buildPreview", () => {
         operations: [],
       } as any,
       innerTransaction: { operations: [] } as any,
+      signatureBound: false,
     });
     vi.mocked(invocation.decodeInvocation).mockResolvedValue({
       invocation: {
@@ -432,6 +446,7 @@ describe("buildPreview", () => {
             operations: [],
           },
           warnings: [],
+          signatureBound: false,
         };
       },
     );
@@ -445,5 +460,121 @@ describe("buildPreview", () => {
     });
 
     expect(capturedOptions?.now).toBe(nowFn);
+  });
+
+  it("signed on Testnet, previewed as Public, gives SIGNATURE_INVALID", async () => {
+    const actualEnvelope =
+      await vi.importActual<typeof import("../../src/envelope")>(
+        "../../src/envelope",
+      );
+    vi.mocked(envelope.parseEnvelope).mockImplementation(
+      actualEnvelope.parseEnvelope,
+    );
+
+    const mockGetNetwork = vi
+      .fn()
+      .mockResolvedValue({ passphrase: Networks.PUBLIC });
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: mockGetNetwork,
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 100 }),
+        }) as any,
+    );
+
+    const kp = Keypair.random();
+    const tx = new TransactionBuilder(new Account(kp.publicKey(), "1"), {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: kp.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .setTimeout(0)
+      .build();
+    tx.sign(kp);
+
+    const res = await buildPreview({
+      xdr: tx.toXDR(),
+      rpcUrl: "http://mock",
+      networkPassphrase: Networks.PUBLIC,
+    });
+
+    expect(res.risk).toBe("blocked");
+    expect(res.network.signatureBound).toBe(false);
+    expect(res.warnings).toContainEqual(
+      expect.objectContaining({
+        code: "SIGNATURE_INVALID",
+        severity: "blocked",
+      }),
+    );
+  });
+
+  it("unsigned gives signatureBound false and no warning", async () => {
+    const actualEnvelope =
+      await vi.importActual<typeof import("../../src/envelope")>(
+        "../../src/envelope",
+      );
+    vi.mocked(envelope.parseEnvelope).mockImplementation(
+      actualEnvelope.parseEnvelope,
+    );
+
+    const mockGetNetwork = vi
+      .fn()
+      .mockResolvedValue({ passphrase: Networks.TESTNET });
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: mockGetNetwork,
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 100 }),
+        }) as any,
+    );
+
+    const kp = Keypair.random();
+    const tx = new TransactionBuilder(new Account(kp.publicKey(), "1"), {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: kp.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .setTimeout(0)
+      .build();
+
+    vi.mocked(simulate.simulateTransaction).mockResolvedValue({
+      status: "skipped",
+      warnings: [],
+    });
+    vi.mocked(effects.extractTokenEffects).mockReturnValue({
+      effects: [],
+      warnings: [],
+    });
+    vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+    vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
+      auth: [],
+      warnings: [],
+    });
+    vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+    vi.mocked(summary.generateSummary).mockReturnValue([]);
+    vi.mocked(risk.computeRisk).mockReturnValue("ok");
+
+    const res = await buildPreview({
+      xdr: tx.toXDR(),
+      rpcUrl: "http://mock",
+      networkPassphrase: Networks.TESTNET,
+    });
+
+    expect(res.network.signatureBound).toBe(false);
+    expect(res.warnings.some((w) => w.code === "SIGNATURE_INVALID")).toBe(
+      false,
+    );
   });
 });

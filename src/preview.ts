@@ -41,12 +41,17 @@ export interface BuildPreviewInput {
 function blockedPreview(
   input: BuildPreviewInput,
   warnings: ClearSignPreview["warnings"],
+  networkState: { rpcMatches?: boolean; signatureBound?: boolean } = {},
 ): ClearSignPreview {
   return {
     version: 1,
     risk: "blocked",
     warnings: warnings.map((w) => ({ ...w, severity: "blocked" })),
-    network: { passphrase: input.networkPassphrase, verified: false },
+    network: {
+      passphrase: input.networkPassphrase,
+      rpcMatches: networkState.rpcMatches ?? false,
+      signatureBound: networkState.signatureBound ?? false,
+    },
     envelope: { source: "", sequence: "", fee: "", operations: [] },
     auth: [],
     simulation: { status: "skipped" },
@@ -78,7 +83,7 @@ export async function buildPreview(
     const server = new rpc.Server(input.rpcUrl, {
       allowHttp: input.rpcUrl.startsWith("http://"),
     });
-    let networkVerified = false;
+    let rpcMatches = false;
     let rpcNetwork: rpc.Api.GetNetworkResponse;
     try {
       rpcNetwork = await server.getNetwork();
@@ -92,9 +97,12 @@ export async function buildPreview(
             message: "RPC network does not match configured network",
           },
         ]);
-        return blockedPreview(input, warnings);
+        return blockedPreview(input, warnings, {
+          rpcMatches: false,
+          signatureBound: false,
+        });
       } else if (rpcNetwork.passphrase === input.networkPassphrase) {
-        networkVerified = true;
+        rpcMatches = true;
       }
     } catch (e) {
       // ignore if getNetwork fails, rely on simulation
@@ -108,13 +116,23 @@ export async function buildPreview(
     );
     if (!envResult.success) {
       addWarning([envResult.error]);
-      return blockedPreview(input, warnings);
+      return blockedPreview(input, warnings, {
+        rpcMatches,
+        signatureBound: false,
+      });
     }
 
     addWarning(envResult.warnings);
 
-    if (envResult.warnings.some((w) => w.code === "NETWORK_MISMATCH")) {
-      return blockedPreview(input, warnings);
+    if (
+      envResult.warnings.some(
+        (w) => w.code === "NETWORK_MISMATCH" || w.code === "SIGNATURE_INVALID",
+      )
+    ) {
+      return blockedPreview(input, warnings, {
+        rpcMatches,
+        signatureBound: envResult.signatureBound,
+      });
     }
 
     const innerTx = envResult.innerTransaction;
@@ -256,9 +274,10 @@ export async function buildPreview(
       })),
       network: {
         passphrase: input.networkPassphrase,
-        verified:
-          networkVerified &&
+        rpcMatches:
+          rpcMatches &&
           envResult.warnings.every((w) => w.code !== "NETWORK_MISMATCH"),
+        signatureBound: envResult.signatureBound,
       },
       envelope: {
         source: envResult.envelope.source,
@@ -296,6 +315,9 @@ export async function buildPreview(
       message: err.message || "Unknown error",
       severity: "blocked" as const,
     };
-    return blockedPreview(input, [w]);
+    return blockedPreview(input, [w], {
+      rpcMatches: false,
+      signatureBound: false,
+    });
   }
 }

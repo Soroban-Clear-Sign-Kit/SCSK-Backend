@@ -300,4 +300,125 @@ describe("parseEnvelope", () => {
       }
     }
   });
+
+  it("marks signatureBound true for valid signed envelope", () => {
+    const tx = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: source.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .setTimeout(0)
+      .build();
+    tx.sign(source);
+
+    const res = parseEnvelope(tx.toXDR(), Networks.TESTNET);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.signatureBound).toBe(true);
+      expect(res.warnings.some((w) => w.code === "SIGNATURE_INVALID")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("gives SIGNATURE_INVALID when signed on Testnet and parsed with Public passphrase", () => {
+    const tx = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: source.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .setTimeout(0)
+      .build();
+    tx.sign(source);
+
+    const res = parseEnvelope(tx.toXDR(), Networks.PUBLIC);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.signatureBound).toBe(false);
+      expect(res.warnings).toContainEqual(
+        expect.objectContaining({ code: "SIGNATURE_INVALID" }),
+      );
+    }
+  });
+
+  it("gives signatureBound false and no warning for unsigned transaction", () => {
+    const tx = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: source.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .setTimeout(0)
+      .build();
+
+    const res = parseEnvelope(tx.toXDR(), Networks.TESTNET);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.signatureBound).toBe(false);
+      expect(res.warnings.some((w) => w.code === "SIGNATURE_INVALID")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("verifies FeeBump transaction signatures correctly", () => {
+    const inner = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: source.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .setTimeout(0)
+      .build();
+    inner.sign(source);
+
+    const feeSource = Keypair.random();
+    const feeBump = TransactionBuilder.buildFeeBumpTransaction(
+      feeSource,
+      "200",
+      inner,
+      Networks.TESTNET,
+    );
+    feeBump.sign(feeSource);
+
+    const resValid = parseEnvelope(feeBump.toXDR(), Networks.TESTNET);
+    expect(resValid.success).toBe(true);
+    if (resValid.success) {
+      expect(resValid.signatureBound).toBe(true);
+      expect(
+        resValid.warnings.some((w) => w.code === "SIGNATURE_INVALID"),
+      ).toBe(false);
+    }
+
+    const resInvalid = parseEnvelope(feeBump.toXDR(), Networks.PUBLIC);
+    expect(resInvalid.success).toBe(true);
+    if (resInvalid.success) {
+      expect(resInvalid.signatureBound).toBe(false);
+      expect(resInvalid.warnings).toContainEqual(
+        expect.objectContaining({ code: "SIGNATURE_INVALID" }),
+      );
+    }
+  });
 });

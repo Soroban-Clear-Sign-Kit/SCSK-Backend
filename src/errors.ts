@@ -5,6 +5,7 @@ export type WarningCode =
   | "ENVELOPE_TOO_LARGE"
   | "NETWORK_MISMATCH"
   | "TX_EXPIRED"
+  | "SIGNATURE_INVALID"
   | "CLASSIC_OP_NOT_DECODED"
   | "CONTRACT_DEPLOYMENT"
   | "WASM_UPLOAD"
@@ -37,6 +38,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   ENVELOPE_TOO_LARGE: "blocked",
   NETWORK_MISMATCH: "blocked",
   TX_EXPIRED: "blocked",
+  SIGNATURE_INVALID: "blocked",
   CLASSIC_OP_NOT_DECODED: "review",
   CONTRACT_DEPLOYMENT: "review",
   WASM_UPLOAD: "review",

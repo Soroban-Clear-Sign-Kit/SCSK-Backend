@@ -40,7 +40,11 @@ interface ClearSignPreview {
     message: string;
     path?: string;
   }[];
-  network: { passphrase: string; verified: boolean };
+  network: {
+    passphrase: string;
+    rpcMatches: boolean;
+    signatureBound: boolean;
+  };
   envelope: {
     source: string;
     sequence: string;
@@ -179,6 +183,7 @@ type DisplayValue =
 | `ENVELOPE_TOO_LARGE`         | `blocked` | The XDR length exceeds the defined memory safety limits.                                               |
 | `NETWORK_MISMATCH`           | `blocked` | RPC network does not match the provided passphrase.                                                    |
 | `TX_EXPIRED`                 | `blocked` | Timebounds on the transaction have already expired relative to current time.                           |
+| `SIGNATURE_INVALID`          | `blocked` | Envelope signature does not match envelope hash or specified network.                                  |
 | `CLASSIC_OP_NOT_DECODED`     | `review`  | The transaction contains non-Soroban operations.                                                       |
 | `CONTRACT_DEPLOYMENT`        | `review`  | The transaction deploys a new Soroban Wasm or Stellar Asset Contract.                                  |
 | `WASM_UPLOAD`                | `review`  | The transaction uploads executable Wasm code to the network.                                           |
