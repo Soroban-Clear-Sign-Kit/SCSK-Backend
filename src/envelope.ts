@@ -32,10 +32,15 @@ export type ParseResult =
       error: EnvelopeWarning;
     };
 
+export interface ParseEnvelopeOptions {
+  now?: (() => number) | number | undefined;
+}
+
 export function parseEnvelope(
   xdrInput: string,
   networkPassphrase?: string,
   rpcPassphrase?: string,
+  options?: ParseEnvelopeOptions,
 ): ParseResult {
   const xdr = (xdrInput || "").trim();
 
@@ -109,7 +114,13 @@ export function parseEnvelope(
     parsedTimeBounds = { min: timeBounds.minTime, max: timeBounds.maxTime };
     if (timeBounds.maxTime !== "0") {
       const maxTimeMs = parseInt(timeBounds.maxTime, 10) * 1000;
-      if (maxTimeMs < Date.now()) {
+      const getNow =
+        typeof options?.now === "function"
+          ? options.now
+          : options?.now !== undefined
+            ? () => options.now as number
+            : Date.now;
+      if (maxTimeMs < getNow()) {
         warnings.push({
           code: "TX_EXPIRED",
           message: "Time bounds have already expired",

@@ -198,6 +198,45 @@ describe("parseEnvelope", () => {
     }
   });
 
+  it("checks TX_EXPIRED before and after maxTime using options.now", () => {
+    const maxTimeSeconds = 1700000000;
+    const tx = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+      timebounds: { minTime: "0", maxTime: String(maxTimeSeconds) },
+    })
+      .addOperation(
+        Operation.payment({
+          destination: source.publicKey(),
+          asset: Asset.native(),
+          amount: "10",
+        }),
+      )
+      .build();
+
+    // 1 second before maxTime: should not be expired
+    const beforeRes = parseEnvelope(tx.toXDR(), Networks.TESTNET, undefined, {
+      now: () => (maxTimeSeconds - 1) * 1000,
+    });
+    expect(beforeRes.success).toBe(true);
+    if (beforeRes.success) {
+      expect(beforeRes.warnings.some((w) => w.code === "TX_EXPIRED")).toBe(
+        false,
+      );
+    }
+
+    // 1 second after maxTime: should be expired
+    const afterRes = parseEnvelope(tx.toXDR(), Networks.TESTNET, undefined, {
+      now: () => (maxTimeSeconds + 1) * 1000,
+    });
+    expect(afterRes.success).toBe(true);
+    if (afterRes.success) {
+      expect(afterRes.warnings).toContainEqual(
+        expect.objectContaining({ code: "TX_EXPIRED" }),
+      );
+    }
+  });
+
   it("never throws for random string input", () => {
     for (let i = 0; i < 500; i++) {
       const randomStr = Math.random().toString(36).substring(2) + "===";

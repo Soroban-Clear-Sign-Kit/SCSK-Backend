@@ -33,6 +33,7 @@ export interface BuildPreviewInput {
     rpcTimeoutMs?: number;
     debug?: boolean;
     localeStrings?: LocaleStrings;
+    now?: (() => number) | number | undefined;
   };
 }
 
@@ -99,7 +100,12 @@ export async function buildPreview(
       // ignore if getNetwork fails, rely on simulation
     }
 
-    const envResult = parseEnvelope(input.xdr, input.networkPassphrase);
+    const envResult = parseEnvelope(
+      input.xdr,
+      input.networkPassphrase,
+      undefined,
+      { now: input.options?.now },
+    );
     if (!envResult.success) {
       addWarning([envResult.error]);
       return blockedPreview(input, warnings);

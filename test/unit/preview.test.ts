@@ -410,4 +410,40 @@ describe("buildPreview", () => {
     expect(res.envelope.timeBounds).toEqual({ min: "0", max: "0" });
     expect(res.envelope.feeBump).toEqual({ feeSource: "S", fee: "200" });
   });
+
+  it("passes options.now to envelope intake for TX_EXPIRED", async () => {
+    let capturedOptions: any;
+    vi.mocked(envelope.parseEnvelope).mockImplementation(
+      (xdr, np, rp, opts) => {
+        capturedOptions = opts;
+        return {
+          success: true,
+          tx: {} as any,
+          innerTransaction: {
+            source: "S",
+            sequence: "1",
+            fee: "100",
+            operations: [],
+          } as any,
+          envelope: {
+            source: "S",
+            sequence: "1",
+            fee: "100",
+            operations: [],
+          },
+          warnings: [],
+        };
+      },
+    );
+
+    const nowFn = () => 1700000000000;
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { now: nowFn },
+    });
+
+    expect(capturedOptions?.now).toBe(nowFn);
+  });
 });
