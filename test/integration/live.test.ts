@@ -3,7 +3,19 @@ import fs from "fs";
 import path from "path";
 import { buildPreview } from "../../src/preview";
 
+const rpcUrl = process.env.STELLAR_RPC_URL;
+const networkPassphrase =
+  process.env.STELLAR_NETWORK_PASSPHRASE || "Test SDF Network ; September 2015";
+
 describe("Live Testnet Integration", () => {
+  if (!rpcUrl) {
+    console.log(
+      "skipping live testnet integration tests: STELLAR_RPC_URL is unset",
+    );
+    it.skip("skipping live testnet integration tests: STELLAR_RPC_URL is unset", () => {});
+    return;
+  }
+
   const fixturesDir = path.join(__dirname, "../fixtures");
   const files = [
     "sac_transfer.json",
@@ -15,8 +27,6 @@ describe("Live Testnet Integration", () => {
     "feebump.json",
     "classic.json",
   ];
-  const rpcUrl = "https://soroban-testnet.stellar.org";
-  const networkPassphrase = "Test SDF Network ; September 2015";
 
   for (const file of files) {
     it(`tests ${file} on live testnet`, async () => {
