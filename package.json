@@ -22,11 +22,12 @@
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@stellar/stellar-sdk": "17.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stellar/stellar-sdk": "17.2.1",
     "@types/node": "^22.5.5",
     "@vitest/coverage-v8": "^2.1.1",
     "eslint": "^10.12.0",
