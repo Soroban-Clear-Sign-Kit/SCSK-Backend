@@ -19,6 +19,9 @@ import { computeRisk } from "./risk.js";
 import { sanitizeRecursive } from "./sanitize.js";
 import { generateSummary } from "./summary.js";
 import { LocaleStrings } from "./locales/en.js";
+import { stripUndefined } from "./util.js";
+import { withTimeout } from "./timeout.js";
+import { RPC_TIMEOUT_MS } from "./limits.js";
 
 export interface BuildPreviewInput {
   xdr: string;
@@ -79,6 +82,8 @@ export async function buildPreview(
     }
   };
 
+  const rpcTimeoutMs = input.options?.rpcTimeoutMs ?? RPC_TIMEOUT_MS;
+
   try {
     const server = new rpc.Server(input.rpcUrl, {
       allowHttp: input.rpcUrl.startsWith("http://"),
@@ -86,7 +91,7 @@ export async function buildPreview(
     let rpcMatches = false;
     let rpcNetwork: rpc.Api.GetNetworkResponse;
     try {
-      rpcNetwork = await server.getNetwork();
+      rpcNetwork = await withTimeout(server.getNetwork(), rpcTimeoutMs);
       if (
         rpcNetwork.passphrase &&
         rpcNetwork.passphrase !== input.networkPassphrase
@@ -142,14 +147,11 @@ export async function buildPreview(
     let invocation: Invocation | undefined;
     const op = innerTx.operations[0];
     if (op) {
-      const invOpts: any = {
+      const invOpts = stripUndefined({
         networkPassphrase: input.networkPassphrase,
         rpcUrl: input.rpcUrl,
         specs: input.specs,
-      };
-      Object.keys(invOpts).forEach(
-        (k) => invOpts[k] === undefined && delete invOpts[k],
-      );
+      });
       const invResult = await decodeInvocation(op, invOpts);
       invocation = invResult.invocation;
       addWarning(invResult.warnings);
@@ -165,15 +167,13 @@ export async function buildPreview(
     );
 
     if (hasInvoke) {
-      const simOpts: any = {
+      const simOpts = stripUndefined({
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
         feeWarningMultiplier: input.options?.feeWarningMultiplier,
+        timeoutMs: input.options?.rpcTimeoutMs,
         specs: input.specs,
-      };
-      Object.keys(simOpts).forEach(
-        (k) => simOpts[k] === undefined && delete simOpts[k],
-      );
+      });
 
       simulation = await simulateTransaction(tx, simOpts);
       addWarning(simulation.warnings);
@@ -188,7 +188,7 @@ export async function buildPreview(
         const server = new rpc.Server(input.rpcUrl, {
           allowHttp: input.rpcUrl.startsWith("http://"),
         });
-        const info = await server.getLatestLedger();
+        const info = await withTimeout(server.getLatestLedger(), rpcTimeoutMs);
         latestLedger = info.sequence;
       } catch (e) {
         // fallback
@@ -200,11 +200,15 @@ export async function buildPreview(
       effects = effResult.effects;
       addWarning(effResult.warnings);
 
-      const metaResult = await resolveTokenMetadata(effects, {
-        rpcUrl: input.rpcUrl,
-        networkPassphrase: input.networkPassphrase,
-        sourceAccount: tx.source,
-      });
+      const metaResult = await resolveTokenMetadata(
+        effects,
+        stripUndefined({
+          rpcUrl: input.rpcUrl,
+          networkPassphrase: input.networkPassphrase,
+          sourceAccount: tx.source,
+          timeoutMs: input.options?.rpcTimeoutMs,
+        }),
+      );
       addWarning(metaResult.warnings);
     }
 
@@ -218,17 +222,14 @@ export async function buildPreview(
     if (authXdr.length === 0 && simulation.auth) {
       authXdr = simulation.auth;
     }
-    const authOpts: any = {
+    const authOpts = stripUndefined({
       rpcUrl: input.rpcUrl,
       networkPassphrase: input.networkPassphrase,
       minAuthValidityLedgers: input.options?.minAuthValidityLedgers,
       signerAddress: input.signerAddress,
       topLevelContractId: invocation?.contractId,
       specs: input.specs,
-    };
-    Object.keys(authOpts).forEach(
-      (k) => authOpts[k] === undefined && delete authOpts[k],
-    );
+    });
 
     const authResult = await decodeAuthEntries(authXdr, latestLedger, authOpts);
     auth = authResult.auth;

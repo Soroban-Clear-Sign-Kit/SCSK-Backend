@@ -68,6 +68,7 @@ export function extractTokenEffects(
     let contractId: string | null = null;
     if (eventContractId) {
       try {
+        // encodeContract does not validate the length, so a short ID would yield a bogus address.
         if (eventContractId.length !== 32) {
           throw new Error("contract ID must be 32 bytes");
         }

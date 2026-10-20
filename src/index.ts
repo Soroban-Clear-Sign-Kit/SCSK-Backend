@@ -16,4 +16,6 @@ export * from "./intent.js";
 export * from "./sanitize.js";
 export * from "./summary.js";
 export * from "./preview.js";
+export * from "./timeout.js";
+export * from "./util.js";
 export * from "./accessors.js";

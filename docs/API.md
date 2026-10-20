@@ -17,12 +17,31 @@ The primary orchestration function that runs the entire clear-sign pipeline: env
 - `input.options` (object, optional):
   - `minAuthValidityLedgers` (number): Default 12. Warns if auth entries expire sooner than this.
   - `feeWarningMultiplier` (number): Default 10. Warns if envelope fee > multiplier * simulated minResourceFee.
-  - `rpcTimeoutMs` (number): Default 10000. Timeout for RPC simulation calls.
-  - `debug` (boolean): Default false. If true, includes the original XDR strings in the output structure.
+  - `rpcTimeoutMs` (number): Default 10000. Timeout in milliseconds applied to every RPC call made by the pipeline (network check, simulation, token metadata, latest ledger).
+  - `debug` (boolean): Default false. If true, the stack trace of an unexpected internal error is written to `console.error`. The preview itself is unaffected: `raw.xdr` is always included.
+  - `localeStrings` (LocaleStrings): Replaces the English summary strings.
 
 #### Returns:
 
 A `Promise` resolving to a `ClearSignPreview` object.
+
+---
+
+### `clearTokenMetadataCache(): void`
+
+Empties the process-wide cache of token `decimals`/`symbol` lookups. The cache is keyed by network passphrase and contract ID and holds at most `MAX_TOKEN_METADATA_CACHE_ENTRIES` (256) entries, evicting the oldest first.
+
+### `partitionWarnings(warnings): { blocked, review }`
+
+Splits a list of warnings (anything with a `severity`) into `blocked` and `review` groups, preserving order. Useful for rendering blocking issues before advisory ones.
+
+### `withTimeout(promise, ms, message?)`
+
+Rejects with `Error(message)` (default `"RPC Timeout"`) if `promise` has not settled after `ms` milliseconds, and always clears its timer.
+
+### `stripUndefined(obj)`
+
+Returns a shallow copy of `obj` without `undefined` values, for use with `exactOptionalPropertyTypes`.
 
 ---
 

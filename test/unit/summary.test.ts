@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateSummary } from "../../src/summary";
+import { en } from "../../src/locales/en";
 
 describe("Summary generation", () => {
   it("generates basic summary without invocation or effects", () => {
@@ -240,5 +241,108 @@ describe("Summary generation", () => {
       "GA...",
     );
     expect(summary).toContain("You receive 50.00 USDC");
+  });
+});
+
+describe("Summary generation: nesting and pluralization", () => {
+  const ok = { status: "success" as const, warnings: [] };
+  const entry = (root: any) => ({
+    root,
+    credentials: { type: "source-account" } as any,
+  });
+
+  it("counts nested sub-invocations but not distinct contracts twice", () => {
+    const summary = generateSummary(
+      undefined,
+      [
+        entry({
+          kind: "contract-fn",
+          contractId: "C1",
+          depth: 0,
+          children: [
+            { kind: "contract-fn", contractId: "C2", depth: 1, children: [] },
+            { kind: "contract-fn", contractId: "C2", depth: 1, children: [] },
+          ],
+        }),
+      ],
+      [],
+      ok,
+    );
+    expect(summary).toContain("You authorize 3 calls across 2 contracts");
+  });
+
+  it("uses singular wording for one call on one contract", () => {
+    const summary = generateSummary(
+      undefined,
+      [
+        entry({
+          kind: "contract-fn",
+          contractId: "C1",
+          depth: 0,
+          children: [],
+        }),
+      ],
+      [],
+      ok,
+    );
+    expect(summary).toContain("You authorize 1 call across 1 contract");
+  });
+
+  it("ignores create-contract nodes when counting calls", () => {
+    const summary = generateSummary(
+      undefined,
+      [entry({ kind: "create-contract", depth: 0, children: [] })],
+      [],
+      ok,
+    );
+    expect(summary).toEqual([]);
+  });
+});
+
+describe("Summary generation: signer effects", () => {
+  const ok = { status: "success" as const, warnings: [] };
+
+  it("only reports effects for the signer", () => {
+    const summary = generateSummary(
+      undefined,
+      [],
+      [
+        {
+          tokenContractId: "T",
+          account: "GSIGNER",
+          delta: "-5",
+          symbol: "USDC",
+          formatted: "-0.5",
+        },
+        { tokenContractId: "T", account: "GOTHER", delta: "5", symbol: "USDC" },
+      ],
+      ok,
+      "GSIGNER",
+    );
+    expect(summary).toEqual(["You spend -0.5 USDC"]);
+  });
+
+  it("reports nothing about effects without a signer address", () => {
+    const summary = generateSummary(
+      undefined,
+      [],
+      [{ tokenContractId: "T", account: "GSIGNER", delta: "-5" }],
+      ok,
+    );
+    expect(summary).toEqual([]);
+  });
+});
+
+describe("Summary generation: custom locale", () => {
+  it("uses provided locale strings", () => {
+    const summary = generateSummary(
+      undefined,
+      [],
+      [],
+      { status: "unavailable", warnings: [] },
+      undefined,
+      { ...en, simulationUnavailable: "Simulation indisponible." },
+    );
+    expect(summary).toEqual(["Simulation indisponible."]);
   });
 });

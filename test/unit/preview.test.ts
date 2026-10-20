@@ -520,3 +520,205 @@ describe("buildPreview", () => {
     );
   });
 });
+
+describe("buildPreview options", () => {
+  const passingEnvelope = () =>
+    vi.mocked(envelope.parseEnvelope).mockReturnValue({
+      success: true,
+      warnings: [],
+      envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
+      innerTransaction: {
+        source: "GSOURCE",
+        operations: [{ type: "invokeHostFunction", func: {} }],
+      } as any,
+    });
+
+  const arrange = (
+    server: { getNetwork?: any; getLatestLedger?: any } = {},
+  ) => {
+    passingEnvelope();
+    vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+      invocation: {
+        contractId: "CC",
+        functionName: "f",
+        args: [],
+        specSource: "none",
+      },
+      warnings: [],
+    });
+    vi.mocked(simulate.simulateTransaction).mockResolvedValue({
+      status: "success",
+      latestLedger: 100,
+      events: [],
+      auth: [],
+      warnings: [],
+    });
+    vi.mocked(effects.extractTokenEffects).mockReturnValue({
+      effects: [],
+      warnings: [],
+    });
+    vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
+    vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
+      auth: [],
+      warnings: [],
+    });
+    vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+    vi.mocked(summary.generateSummary).mockReturnValue([]);
+    vi.mocked(risk.computeRisk).mockReturnValue("ok");
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: vi.fn().mockResolvedValue({ passphrase: "test" }),
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 1 }),
+          ...server,
+        }) as any,
+    );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("forwards rpcTimeoutMs to simulation", async () => {
+    arrange();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { rpcTimeoutMs: 1234 },
+    });
+
+    expect(simulate.simulateTransaction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ timeoutMs: 1234 }),
+    );
+  });
+
+  it("forwards rpcTimeoutMs to token metadata lookups", async () => {
+    arrange();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { rpcTimeoutMs: 4321 },
+    });
+
+    expect(tokens.resolveTokenMetadata).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ timeoutMs: 4321 }),
+    );
+  });
+
+  it("omits timeoutMs when rpcTimeoutMs is not set", async () => {
+    arrange();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+    });
+
+    const simOpts = vi.mocked(simulate.simulateTransaction).mock.calls[0]?.[1];
+    expect(simOpts).toBeDefined();
+    expect("timeoutMs" in simOpts!).toBe(false);
+  });
+});
+
+describe("buildPreview RPC timeouts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not hang when getNetwork never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(envelope.parseEnvelope).mockReturnValue({
+        success: true,
+        warnings: [],
+        envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
+        innerTransaction: { operations: [] } as any,
+      });
+      vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
+        auth: [],
+        warnings: [],
+      });
+      vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+      vi.mocked(summary.generateSummary).mockReturnValue([]);
+      vi.mocked(risk.computeRisk).mockReturnValue("ok");
+      vi.mocked(rpc.Server).mockImplementation(
+        () =>
+          ({
+            getNetwork: vi.fn().mockReturnValue(new Promise(() => {})),
+            getLatestLedger: vi.fn().mockResolvedValue({ sequence: 5 }),
+          }) as any,
+      );
+
+      const pending = buildPreview({
+        xdr: "ok",
+        rpcUrl: "http://mock",
+        networkPassphrase: "test",
+        options: { rpcTimeoutMs: 500 },
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      const res = await pending;
+
+      expect(res.network.verified).toBe(false);
+      expect(res.risk).toBe("ok");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("buildPreview debug logging", () => {
+  const explode = () =>
+    vi.mocked(envelope.parseEnvelope).mockImplementation(() => {
+      throw new Error("kaboom");
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: vi.fn().mockResolvedValue({ passphrase: "test" }),
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 1 }),
+        }) as any,
+    );
+  });
+
+  it("stays quiet about internal errors by default", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    explode();
+
+    const res = await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+    });
+
+    expect(res.warnings[0]?.code).toBe("INTERNAL_ERROR");
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("logs the stack of internal errors when options.debug is true", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    explode();
+
+    await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { debug: true },
+    });
+
+    expect(spy).toHaveBeenCalledWith(
+      "INTERNAL_ERROR Stack:",
+      expect.stringContaining("kaboom"),
+    );
+    spy.mockRestore();
+  });
+});
