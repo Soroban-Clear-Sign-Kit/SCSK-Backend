@@ -2,6 +2,7 @@ import {
   Intent,
   Invocation,
   AuthEntry,
+  AuthNode,
   BalanceDelta,
   DisplayValue,
 } from "./types.js";
@@ -133,7 +134,7 @@ export function verifyIntent(
         (entry.credentials.type === "source-account" &&
           signerAddress === sourceAccount);
       if (isSigner) {
-        const walk = (node: any) => {
+        const walk = (node: AuthNode) => {
           if (node.contractId && !allowed.has(normalize(node.contractId))) {
             warnings.push({
               code: "INTENT_UNEXPECTED_AUTH",

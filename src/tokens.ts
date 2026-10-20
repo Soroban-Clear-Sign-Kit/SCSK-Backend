@@ -10,6 +10,7 @@ import {
 import { BalanceDelta } from "./types.js";
 import { WarningCode } from "./errors.js";
 import { RPC_TIMEOUT_MS } from "./limits.js";
+import { unwrap, getSwitchName } from "./accessors.js";
 
 export interface TokenMetadataOptions {
   rpcUrl: string;
@@ -60,10 +61,11 @@ export async function resolveTokenMetadata(
             message: `Could not read metadata for token ${contractId}`,
           });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         warnings.push({
           code: "SIMULATION_UNAVAILABLE",
-          message: `RPC error resolving metadata for token ${contractId}: ${err.message}`,
+          message: `RPC error resolving metadata for token ${contractId}: ${msg}`,
         });
       }
     }
@@ -139,11 +141,10 @@ async function readContractNumber(
       response.result &&
       response.result.retval
     ) {
-      const val: any = response.result.retval;
-      const valType =
-        typeof val.switch === "function" ? val.switch().name : val.type;
+      const val = response.result.retval as unknown as Record<string, unknown>;
+      const valType = getSwitchName(val);
       if (valType === "scvU32") {
-        return typeof val.u32 === "function" ? val.u32() : val.u32;
+        return unwrap<number>(val.u32) ?? null;
       }
     }
     return null;
@@ -183,15 +184,24 @@ async function readContractString(
       response.result &&
       response.result.retval
     ) {
-      const val: any = response.result.retval;
-      const valType =
-        typeof val.switch === "function" ? val.switch().name : val.type;
+      const val = response.result.retval as unknown as Record<string, unknown>;
+      const valType = getSwitchName(val);
       if (valType === "scvString") {
-        const v = typeof val.str === "function" ? val.str() : val.str;
-        return typeof v === "string" ? v : v.toString("utf8");
+        const v =
+          typeof val.str === "function"
+            ? (val.str as () => unknown)()
+            : val.str;
+        return typeof v === "string"
+          ? v
+          : (v as { toString: (enc?: string) => string }).toString("utf8");
       } else if (valType === "scvSymbol") {
-        const v = typeof val.sym === "function" ? val.sym() : val.sym;
-        return typeof v === "string" ? v : v.toString();
+        const v =
+          typeof val.sym === "function"
+            ? (val.sym as () => unknown)()
+            : val.sym;
+        return typeof v === "string"
+          ? v
+          : (v as { toString: () => string }).toString();
       }
     }
     return null;

@@ -61,7 +61,7 @@ export async function loadSpec(
         Buffer.from(opts.specs[contractId] as Uint8Array),
       );
       return { spec, source: "injected", warnings };
-    } catch (e: any) {
+    } catch (e: unknown) {
       warnings.push({
         code: "SPEC_UNAVAILABLE",
         message: "Injected spec is invalid",
@@ -91,16 +91,22 @@ export async function loadSpec(
     let wasmHashId: string | undefined;
 
     if ("executable" in instance) {
-      const executable = (instance as any).executable;
-      if (typeof executable?.switch === "function") {
-        const type = executable.switch();
+      const executable = (instance as unknown as Record<string, unknown>)
+        .executable as Record<string, unknown> | undefined;
+      if (
+        executable &&
+        typeof (executable.switch as () => unknown) === "function"
+      ) {
+        const type = (executable.switch as () => { name: string })();
         if (type.name === "contractExecutableToken") {
           isSac = true;
         } else if (type.name === "contractExecutableWasm") {
-          wasmHashId = executable.wasmHash().toString("hex");
+          wasmHashId = (
+            executable.wasmHash as () => { toString: (enc: string) => string }
+          )()?.toString("hex");
         }
       } else if (executable?.wasmHash) {
-        wasmHashId = executable.wasmHash;
+        wasmHashId = String(executable.wasmHash);
       }
     }
 
@@ -132,7 +138,8 @@ export async function loadSpec(
     // wasmResponse is either a Buffer or an object carrying wasmBytes.
     const wasmBytes = Buffer.isBuffer(wasmResponse)
       ? wasmResponse
-      : (wasmResponse as any).wasmBytes;
+      : ((wasmResponse as unknown as Record<string, unknown>).wasmBytes as
+          Buffer | Uint8Array | undefined);
     if (!wasmBytes) {
       warnings.push({
         code: "SPEC_UNAVAILABLE",
@@ -153,10 +160,11 @@ export async function loadSpec(
     _wasmHashCache.set(networkKey, finalHash);
 
     return { spec, source: "wasm", warnings };
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
     warnings.push({
       code: "SPEC_UNAVAILABLE",
-      message: "Failed to fetch or parse contract spec: " + e.message,
+      message: "Failed to fetch or parse contract spec: " + msg,
     });
     return { spec: null, source: "none", warnings };
   }

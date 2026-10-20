@@ -24,7 +24,7 @@ export type ParseResult =
         feeBump?: { feeSource: string; fee: string };
         memo?: { type: string; value: string };
         timeBounds?: { min: string; max: string };
-        operations: { type: string; decoded: boolean; raw: any }[];
+        operations: { type: string; decoded: boolean; raw: unknown }[];
       };
       innerTransaction: Transaction;
       warnings: EnvelopeWarning[];
@@ -39,11 +39,23 @@ export interface ParseEnvelopeOptions {
   now?: (() => number) | number | undefined;
 }
 
-function getSignatureBytes(val: any): Buffer {
+function getSignatureBytes(val: unknown): Buffer {
   if (!val) return Buffer.alloc(0);
-  if (typeof val === "function") val = val();
-  if (val && typeof val === "object" && "value" in val) val = val.value;
-  return Buffer.from(val);
+  let current: unknown = val;
+  if (typeof current === "function") current = (current as () => unknown)();
+  if (
+    current &&
+    typeof current === "object" &&
+    "value" in current &&
+    (current as { value: unknown }).value !== undefined
+  ) {
+    current = (current as { value: unknown }).value;
+  }
+  return Buffer.isBuffer(current)
+    ? current
+    : current instanceof Uint8Array
+      ? Buffer.from(current)
+      : Buffer.from(String(current ?? ""));
 }
 
 function getBaseAccountId(address: string): string {
@@ -76,8 +88,9 @@ function verifySignaturesForAccount(
   }
 
   const hint = Buffer.from(kp.signatureHint());
-  const matching = signatures.filter((s: any) => {
-    const sHint = getSignatureBytes(s.hint);
+  const matching = signatures.filter((s: unknown) => {
+    const sObj = s as unknown as Record<string, unknown>;
+    const sHint = getSignatureBytes(sObj.hint);
     return sHint.equals(hint);
   });
 
@@ -86,7 +99,8 @@ function verifySignaturesForAccount(
   }
 
   for (const s of matching) {
-    const rawSig = getSignatureBytes((s as any).signature);
+    const sObj = s as unknown as Record<string, unknown>;
+    const rawSig = getSignatureBytes(sObj.signature);
     if (!kp.verify(hash, rawSig)) {
       return { checked: true, valid: false };
     }
@@ -131,7 +145,7 @@ export function parseEnvelope(
   try {
     tx = TransactionBuilder.fromXDR(xdr, networkPassphrase ?? "") as
       Transaction | FeeBumpTransaction;
-  } catch (e: any) {
+  } catch (e: unknown) {
     return {
       success: false,
       error: { code: "ENVELOPE_MALFORMED", message: "Failed to parse XDR" },
@@ -251,15 +265,15 @@ export function parseEnvelope(
     }
   }
 
-  const resultEnvelope: any = {
+  const resultEnvelope = {
     source: sourceString,
     sequence: innerTransaction.sequence,
     fee: innerTransaction.fee,
     operations: parsedOperations,
+    ...(feeBump ? { feeBump } : {}),
+    ...(parsedMemo ? { memo: parsedMemo } : {}),
+    ...(parsedTimeBounds ? { timeBounds: parsedTimeBounds } : {}),
   };
-  if (feeBump) resultEnvelope.feeBump = feeBump;
-  if (parsedMemo) resultEnvelope.memo = parsedMemo;
-  if (parsedTimeBounds) resultEnvelope.timeBounds = parsedTimeBounds;
 
   let signatureBound = false;
   let signatureInvalid = false;
