@@ -11,8 +11,93 @@ export function decodeScVal(
 ): { value: DisplayValue; warnings: { code: WarningCode; message: string }[] } {
   const warnings: { code: WarningCode; message: string }[] = [];
 
+  if (scVal === "void") {
+    return { value: { kind: "void" }, warnings };
+  }
+
+  if (
+    typeof scVal === "object" &&
+    scVal !== null &&
+    typeof scVal.toXDR !== "function"
+  ) {
+    if ("bool" in scVal) {
+      return { value: { kind: "bool", value: Boolean(scVal.bool) }, warnings };
+    }
+    if ("address" in scVal) {
+      const a = String(scVal.address);
+      return {
+        value: {
+          kind: "address",
+          value: a,
+          addressType: a.startsWith("G") ? "account" : "contract",
+        },
+        warnings,
+      };
+    }
+    if ("symbol" in scVal) {
+      return {
+        value: {
+          kind: "symbol",
+          value: String(scVal.symbol),
+          sanitized: false,
+          truncated: false,
+        },
+        warnings,
+      };
+    }
+    if ("string" in scVal) {
+      return {
+        value: {
+          kind: "string",
+          value: String(scVal.string),
+          sanitized: false,
+          truncated: false,
+        },
+        warnings,
+      };
+    }
+    if ("bytes" in scVal) {
+      const hex = String(scVal.bytes);
+      return {
+        value: {
+          kind: "bytes",
+          hex,
+          length: Buffer.from(hex, "hex").length,
+          truncated: false,
+        },
+        warnings,
+      };
+    }
+    for (const k of [
+      "u32",
+      "i32",
+      "u64",
+      "i64",
+      "u128",
+      "i128",
+      "u256",
+      "i256",
+    ]) {
+      if (k in scVal) {
+        return {
+          value: { kind: "int", type: k as any, value: String(scVal[k]) },
+          warnings,
+        };
+      }
+    }
+    if ("vec" in scVal && Array.isArray(scVal.vec)) {
+      const items: DisplayValue[] = [];
+      for (const item of scVal.vec) {
+        const itemRes = decodeScVal(item, spec, null, depth + 1);
+        warnings.push(...itemRes.warnings);
+        items.push(itemRes.value);
+      }
+      return { value: { kind: "vec", items }, warnings };
+    }
+  }
+
   const scValType =
-    typeof scVal.switch === "function" ? scVal.switch().name : scVal.type;
+    typeof scVal?.switch === "function" ? scVal.switch().name : scVal?.type;
 
   if (depth > MAX_SCVAL_DEPTH) {
     warnings.push({

@@ -16,26 +16,39 @@ export function extractTokenEffects(
   const deltas: Record<string, Record<string, bigint>> = {}; // contractId -> account -> delta
 
   for (const diagnosticEvent of events) {
-    const isSuccess = diagnosticEvent.inSuccessfulContractCall;
+    const isSuccess =
+      diagnosticEvent.inSuccessfulContractCall ??
+      (diagnosticEvent as any).in_successful_contract_call;
     if (!isSuccess) continue;
     const event: any = diagnosticEvent.event;
 
     const eventType: any =
       typeof event.type === "function" ? event.type() : event.type;
     if (
-      eventType.name !== "contractEventTypeContract" &&
-      eventType.name !== "contract" &&
-      eventType.value !== 1
+      eventType !== "contract" &&
+      eventType?.name !== "contractEventTypeContract" &&
+      eventType?.name !== "contract" &&
+      eventType?.value !== 1
     )
       continue;
 
     const eventContractIdRaw =
-      typeof event.contractId === "function"
+      (typeof event.contractId === "function"
         ? event.contractId()
-        : event.contractId;
+        : event.contractId) ?? event.contract_id;
     let eventContractId: Buffer | Uint8Array | null = null;
     if (eventContractIdRaw) {
-      if (
+      if (typeof eventContractIdRaw === "string") {
+        if (eventContractIdRaw.startsWith("C")) {
+          try {
+            eventContractId = StrKey.decodeContract(eventContractIdRaw);
+          } catch {
+            // ignore
+          }
+        } else if (eventContractIdRaw.length === 64) {
+          eventContractId = Buffer.from(eventContractIdRaw, "hex");
+        }
+      } else if (
         Buffer.isBuffer(eventContractIdRaw) ||
         eventContractIdRaw instanceof Uint8Array
       ) {

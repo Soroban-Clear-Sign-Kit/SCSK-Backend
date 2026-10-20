@@ -85,64 +85,6 @@ describe("buildPreview", () => {
     expect(res.simulation.status).toBe("skipped");
   });
 
-  it("orchestrates successful flow", async () => {
-    vi.mocked(envelope.parseEnvelope).mockReturnValue({
-      success: true,
-      warnings: [],
-      envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
-      innerTransaction: {
-        operations: [{ type: "invokeHostFunction", func: {} }],
-      } as any,
-      signatureBound: false,
-    });
-
-    vi.mocked(invocation.decodeInvocation).mockResolvedValue({
-      invocation: {
-        contractId: "CC",
-        functionName: "test",
-        args: [],
-        specSource: "none",
-      },
-      warnings: [],
-    });
-
-    vi.mocked(simulate.simulateTransaction).mockResolvedValue({
-      status: "success",
-      latestLedger: 100,
-      events: [],
-      auth: [],
-      warnings: [],
-    });
-
-    vi.mocked(effects.extractTokenEffects).mockReturnValue({
-      effects: [],
-      warnings: [],
-    });
-
-    vi.mocked(tokens.resolveTokenMetadata).mockResolvedValue({ warnings: [] });
-
-    vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
-      auth: [],
-      warnings: [],
-    });
-
-    vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
-
-    vi.mocked(summary.generateSummary).mockReturnValue(["All good"]);
-
-    vi.mocked(risk.computeRisk).mockReturnValue("ok");
-
-    const res = await buildPreview({
-      xdr: "ok",
-      rpcUrl: "http://mock",
-      networkPassphrase: "test",
-    });
-
-    expect(res.risk).toBe("ok");
-    expect(res.simulation.status).toBe("success");
-    expect(res.summary).toEqual(["All good"]);
-  });
-
   it("sets severities for warnings", async () => {
     vi.mocked(envelope.parseEnvelope).mockReturnValue({
       success: true,

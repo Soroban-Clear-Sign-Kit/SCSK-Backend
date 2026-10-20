@@ -30,35 +30,57 @@ export async function decodeAuthEntries(
     let credentials: AuthEntry["credentials"];
 
     const credsSwitch =
-      typeof creds.switch === "function" ? creds.switch().name : creds.type;
+      typeof creds?.switch === "function"
+        ? creds.switch().name
+        : (creds?.type ?? creds);
 
-    if (credsSwitch === "sorobanCredentialsSourceAccount") {
+    if (
+      creds === "source_account" ||
+      creds === "sourceAccount" ||
+      credsSwitch === "sorobanCredentialsSourceAccount" ||
+      credsSwitch === "source_account"
+    ) {
       credentials = { type: "source-account" };
-    } else if (credsSwitch === "sorobanCredentialsAddress") {
+    } else if (
+      credsSwitch === "sorobanCredentialsAddress" ||
+      (creds &&
+        typeof creds === "object" &&
+        ("address" in creds || "addressCreds" in creds))
+    ) {
       const addrCreds =
-        typeof creds.address === "function" ? creds.address() : creds.address;
+        (typeof creds.address === "function"
+          ? creds.address()
+          : creds.address) ||
+        creds.addressCreds ||
+        creds;
       const addrObj =
         typeof addrCreds.address === "function"
           ? addrCreds.address()
           : addrCreds.address;
-      const address = Address.fromScAddress(addrObj).toString();
+      const address =
+        typeof addrObj === "string"
+          ? addrObj
+          : Address.fromScAddress(addrObj).toString();
       const nonceObj =
         typeof addrCreds.nonce === "function"
           ? addrCreds.nonce()
           : addrCreds.nonce;
-      const nonce = nonceObj.toString();
+      const nonce = nonceObj ? nonceObj.toString() : "0";
       const signatureExpirationLedger =
         typeof addrCreds.signatureExpirationLedger === "function"
           ? addrCreds.signatureExpirationLedger()
-          : addrCreds.signatureExpirationLedger;
+          : (addrCreds.signatureExpirationLedger ??
+            addrCreds.signature_expiration_ledger ??
+            0);
       const signature =
         typeof addrCreds.signature === "function"
           ? addrCreds.signature()
           : addrCreds.signature;
-      const signed =
-        (typeof signature.switch === "function"
-          ? signature.switch().name
-          : signature.type) !== "scvVoid";
+      const signed = signature
+        ? (typeof signature.switch === "function"
+            ? signature.switch().name
+            : signature.type) !== "scvVoid" && signature !== "void"
+        : false;
 
       credentials = {
         type: "address",
@@ -110,9 +132,10 @@ export async function decodeAuthEntries(
       }
 
       const func =
-        typeof inv.function === "function" ? inv.function() : inv.function;
+        (typeof inv.function === "function" ? inv.function() : inv.function) ||
+        inv.fn;
       const funcType =
-        typeof func.switch === "function" ? func.switch().name : func.type;
+        typeof func?.switch === "function" ? func.switch().name : func?.type;
 
       let kind: AuthNode["kind"] = "contract-fn";
       let contractId: string | undefined;
@@ -121,20 +144,27 @@ export async function decodeAuthEntries(
       let details: Record<string, string> | undefined;
       let skipChildren = false;
 
-      if (funcType === "sorobanAuthorizedFunctionTypeContractFn") {
+      if (
+        funcType === "sorobanAuthorizedFunctionTypeContractFn" ||
+        func?.contract_fn ||
+        func?.contractFn
+      ) {
         const contractFn =
-          typeof func.contractFn === "function"
+          (typeof func.contractFn === "function"
             ? func.contractFn()
-            : func.contractFn;
+            : func.contractFn) || func.contract_fn;
         const addrObj =
-          typeof contractFn.contractAddress === "function"
+          (typeof contractFn.contractAddress === "function"
             ? contractFn.contractAddress()
-            : contractFn.contractAddress;
-        contractId = Address.fromScAddress(addrObj).toString();
+            : contractFn.contractAddress) || contractFn.contract_address;
+        contractId =
+          typeof addrObj === "string"
+            ? addrObj
+            : Address.fromScAddress(addrObj).toString();
         const rawFnName =
-          typeof contractFn.functionName === "function"
+          (typeof contractFn.functionName === "function"
             ? contractFn.functionName()
-            : contractFn.functionName;
+            : contractFn.functionName) || contractFn.function_name;
         functionName =
           typeof rawFnName === "string" ? rawFnName : rawFnName.toString();
 
@@ -146,9 +176,9 @@ export async function decodeAuthEntries(
         }
 
         const scVals =
-          typeof contractFn.args === "function"
+          (typeof contractFn.args === "function"
             ? contractFn.args()
-            : contractFn.args;
+            : contractFn.args) || [];
 
         const specResult = await loadSpec(contractId, opts);
         warnings.push(...specResult.warnings);
@@ -225,9 +255,11 @@ export async function decodeAuthEntries(
       const children: AuthNode[] = [];
       if (!skipChildren) {
         const subInvs =
-          typeof inv.subInvocations === "function"
+          (typeof inv.subInvocations === "function"
             ? inv.subInvocations()
-            : inv.subInvocations;
+            : inv.subInvocations) ||
+          inv.sub_invocations ||
+          [];
         for (const sub of subInvs || []) {
           children.push(await walkInvocation(sub, depth + 1));
         }
@@ -252,9 +284,9 @@ export async function decodeAuthEntries(
     }
 
     const rootInvoc =
-      typeof entry.rootInvocation === "function"
+      (typeof entry.rootInvocation === "function"
         ? entry.rootInvocation()
-        : entry.rootInvocation;
+        : entry.rootInvocation) || entry.root_invocation;
     const root = await walkInvocation(rootInvoc, 1);
 
     auth.push({ credentials, root });
