@@ -4,26 +4,28 @@ import {
   FeeBumpTransaction,
   xdr,
   Address,
+  contract,
 } from "@stellar/stellar-sdk";
 import { WarningCode } from "./errors.js";
 import { DisplayValue } from "./types.js";
 import { RPC_TIMEOUT_MS, DEFAULT_FEE_WARNING_MULTIPLIER } from "./limits.js";
 import { loadSpec, SpecLoaderOptions, SAC_FUNCTIONS } from "./spec.js";
 import { decodeScVal } from "./scval.js";
+import { unwrap, getSwitchName } from "./accessors.js";
 
 export interface SimulateOptions extends SpecLoaderOptions {
   rpcUrl: string;
-  feeWarningMultiplier?: number;
+  feeWarningMultiplier?: number | undefined;
 }
 
 export interface SimulationResult {
   status: "success" | "failed" | "needs-restore" | "unavailable" | "skipped";
-  minResourceFee?: string;
-  error?: string;
-  returnValue?: DisplayValue;
-  latestLedger?: number;
-  events?: xdr.DiagnosticEvent[];
-  auth?: xdr.SorobanAuthorizationEntry[];
+  minResourceFee?: string | undefined;
+  error?: string | undefined;
+  returnValue?: DisplayValue | undefined;
+  latestLedger?: number | undefined;
+  events?: xdr.DiagnosticEvent[] | undefined;
+  auth?: xdr.SorobanAuthorizationEntry[] | undefined;
   warnings: { code: WarningCode; message: string }[];
 }
 
@@ -49,10 +51,16 @@ export async function simulateTransaction(
       );
     });
     response = await Promise.race([simulatePromise, timeoutPromise]);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "RPC unreachable or timed out";
     warnings.push({
       code: "SIMULATION_UNAVAILABLE",
-      message: err.message || "RPC unreachable or timed out",
+      message: message || "RPC unreachable or timed out",
     });
     return { status: "unavailable", warnings };
   } finally {
@@ -64,11 +72,14 @@ export async function simulateTransaction(
       code: "SIMULATION_FAILED",
       message: response.error || "Simulation failed",
     });
+    const respRecord = response as unknown as Record<string, unknown>;
+    const latestLedger =
+      typeof respRecord.latestLedger === "number" ? respRecord.latestLedger : 0;
     return {
       status: "failed",
       error: response.error,
       warnings,
-      latestLedger: (response as any).latestLedger || 0,
+      latestLedger,
     };
   }
 
@@ -96,43 +107,43 @@ export async function simulateTransaction(
       const retScVal = response.result.retval;
 
       // find the invoke operation to get spec
-      let returnType: any = null;
-      let spec: any = null;
+      let returnType: xdr.ScSpecTypeDef | null = null;
+      let spec: contract.Spec | null = null;
 
       const op = innerTx.operations[0];
       if (op && op.type === "invokeHostFunction" && op.func) {
-        const f: any = op.func;
-        const funcSwitch =
-          f && typeof f.switch === "function" ? f.switch().name : f.type;
+        const f = op.func as unknown as Record<string, unknown>;
+        const funcSwitch = getSwitchName(f);
         if (funcSwitch === "hostFunctionTypeInvokeContract") {
           const invokeArgs =
-            typeof f.invokeContract === "function"
-              ? f.invokeContract()
-              : f.invokeContract;
-          const contractAddressObj =
-            typeof invokeArgs.contractAddress === "function"
-              ? invokeArgs.contractAddress()
-              : invokeArgs.contractAddress;
-          const contractId =
-            Address.fromScAddress(contractAddressObj).toString();
-          const rawFn =
-            typeof invokeArgs.functionName === "function"
-              ? invokeArgs.functionName()
-              : invokeArgs.functionName;
+            unwrap<Record<string, unknown>>(f.invokeContract) ?? f;
+          const contractAddressObj = unwrap(invokeArgs.contractAddress);
+          const contractId = Address.fromScAddress(
+            contractAddressObj as xdr.ScAddress,
+          ).toString();
+          const rawFn = unwrap<string | { toString: () => string }>(
+            invokeArgs.functionName,
+          );
           const functionName =
-            typeof rawFn === "string" ? rawFn : rawFn.toString();
+            typeof rawFn === "string"
+              ? rawFn
+              : typeof (rawFn as { toString?: unknown })?.toString ===
+                  "function"
+                ? (rawFn as { toString: () => string }).toString()
+                : String(rawFn ?? "");
 
           const specResult = await loadSpec(contractId, opts);
           if (specResult.spec) {
             spec = specResult.spec;
             const funcEntry = spec.getFunc(functionName);
             if (funcEntry && funcEntry.outputs.length > 0) {
-              returnType = funcEntry.outputs[0];
+              returnType = funcEntry.outputs[0] ?? null;
             }
           } else if (specResult.source === "sac-builtin") {
-            const sacDef: any = SAC_FUNCTIONS[functionName];
+            const sacDef = SAC_FUNCTIONS[functionName];
             if (sacDef && sacDef.outputs && sacDef.outputs.length > 0) {
-              returnType = sacDef.outputs[0];
+              returnType =
+                (sacDef.outputs[0] as unknown as xdr.ScSpecTypeDef) ?? null;
             }
           }
         }
@@ -160,17 +171,15 @@ export async function simulateTransaction(
       });
     }
 
-    const result: any = {
+    const result: SimulationResult = {
       status: "success",
       minResourceFee,
       latestLedger,
       events,
       auth,
       warnings,
+      ...(returnValue !== undefined ? { returnValue } : {}),
     };
-    if (returnValue !== undefined) {
-      result.returnValue = returnValue;
-    }
     return result;
   }
 
