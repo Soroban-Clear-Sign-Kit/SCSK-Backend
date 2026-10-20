@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { parseEnvelope } from "../../src/envelope.js";
 import {
   TransactionBuilder,
@@ -12,6 +15,19 @@ import {
   MuxedAccount,
   Address,
 } from "@stellar/stellar-sdk";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function createPrng(seed: number) {
+  let state = seed | 0;
+  return function () {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const source = Keypair.random();
 const account = new Account(source.publicKey(), "1");
@@ -237,10 +253,80 @@ describe("parseEnvelope", () => {
     }
   });
 
-  it("never throws for random string input", () => {
+  it("never throws for 500 seeded random strings", () => {
+    const rng = createPrng(42);
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=!@#$%^&*()_+-=[]{}|;:,.<>?\n\r\t\0";
     for (let i = 0; i < 500; i++) {
-      const randomStr = Math.random().toString(36).substring(2) + "===";
-      expect(() => parseEnvelope(randomStr)).not.toThrow();
+      const len = Math.floor(rng() * 200);
+      let str = "";
+      for (let j = 0; j < len; j++) {
+        str += chars[Math.floor(rng() * chars.length)]!;
+      }
+      expect(() => parseEnvelope(str)).not.toThrow();
+    }
+  });
+
+  it("never throws for 2000 seeded mutations of real fixtures", () => {
+    const rng = createPrng(999);
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=!@#$%^&*()_+-=[]{}|;:,.<>?\n\r\t\0";
+
+    const fixturesDir = path.join(__dirname, "../fixtures");
+    const fixtureFiles = fs
+      .readdirSync(fixturesDir)
+      .filter((f) => f.endsWith(".json"));
+    const xdrs: string[] = [];
+    for (const f of fixtureFiles) {
+      const d = JSON.parse(fs.readFileSync(path.join(fixturesDir, f), "utf8"));
+      if (d.xdr && typeof d.xdr === "string") {
+        xdrs.push(d.xdr);
+      }
+    }
+    expect(xdrs.length).toBeGreaterThan(0);
+
+    const mutationTypes = [
+      "flip",
+      "truncate",
+      "insert",
+      "delete",
+      "pad",
+      "replace",
+    ] as const;
+
+    for (let i = 0; i < 2000; i++) {
+      const base = xdrs[Math.floor(rng() * xdrs.length)]!;
+      const mType = mutationTypes[Math.floor(rng() * mutationTypes.length)]!;
+      let mutated = base;
+
+      if (mType === "flip" && base.length > 0) {
+        const idx = Math.floor(rng() * base.length);
+        const replacement = chars[Math.floor(rng() * chars.length)]!;
+        mutated = base.slice(0, idx) + replacement + base.slice(idx + 1);
+      } else if (mType === "truncate") {
+        const idx = Math.floor(rng() * base.length);
+        mutated = base.slice(0, idx);
+      } else if (mType === "insert") {
+        const idx = Math.floor(rng() * base.length);
+        const count = 1 + Math.floor(rng() * 10);
+        let junk = "";
+        for (let k = 0; k < count; k++) {
+          junk += chars[Math.floor(rng() * chars.length)]!;
+        }
+        mutated = base.slice(0, idx) + junk + base.slice(idx);
+      } else if (mType === "delete" && base.length > 5) {
+        const start = Math.floor(rng() * (base.length - 4));
+        const len = 1 + Math.floor(rng() * 4);
+        mutated = base.slice(0, start) + base.slice(start + len);
+      } else if (mType === "pad") {
+        mutated =
+          base.replace(/=/g, "") + "===".slice(0, Math.floor(rng() * 4));
+      } else if (mType === "replace") {
+        const idx = Math.floor(rng() * base.length);
+        mutated = base.slice(0, idx) + "\0" + base.slice(idx + 1);
+      }
+
+      expect(() => parseEnvelope(mutated)).not.toThrow();
     }
   });
 
