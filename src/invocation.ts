@@ -1,11 +1,12 @@
-import { Operation, xdr, Address, hash } from "@stellar/stellar-sdk";
+import { xdr, Address, hash } from "@stellar/stellar-sdk";
 import { Invocation, DecodedArg } from "./types.js";
 import { loadSpec, SAC_FUNCTIONS, SpecLoaderOptions } from "./spec.js";
 import { decodeScVal } from "./scval.js";
 import { WarningCode } from "./errors.js";
+import { unwrap, getSwitchName, getArray, toBuffer } from "./accessors.js";
 
 export async function decodeInvocation(
-  op: any,
+  op: unknown,
   opts: SpecLoaderOptions,
 ): Promise<{
   invocation: Invocation;
@@ -13,35 +14,32 @@ export async function decodeInvocation(
 }> {
   const warnings: { code: WarningCode; message: string }[] = [];
 
-  let opType: string;
-  let func: any; // could be xdr.HostFunction or parsed HostFunctionInvokeContract
+  const opRecord = (op ?? {}) as Record<string, unknown>;
+  let opType: string | undefined;
+  let func: unknown; // could be xdr.HostFunction or parsed HostFunctionInvokeContract
 
-  if (op.type && !op.body) {
-    opType = op.type;
-    func = op.func;
+  const opSwitchName = getSwitchName(opRecord);
+
+  if (opRecord.type && !opRecord.body) {
+    opType = String(opRecord.type);
+    func = opRecord.func;
   } else if (
-    (typeof op.switch === "function" &&
-      op.switch().name.startsWith("hostFunctionType")) ||
-    op.hostFunction !== undefined ||
-    op.invokeContract !== undefined
+    (opSwitchName && opSwitchName.startsWith("hostFunctionType")) ||
+    opRecord.hostFunction !== undefined ||
+    opRecord.invokeContract !== undefined
   ) {
     opType = "invokeHostFunction";
-    func = op.hostFunction || op;
+    func = opRecord.hostFunction ?? op;
   } else {
-    const body = typeof op.body === "function" ? op.body() : op.body;
+    const body = unwrap<Record<string, unknown>>(opRecord.body);
     opType =
-      body && typeof body.switch === "function"
-        ? body.switch().name
-        : body?.type;
-    if (opType === "invokeHostFunction") {
-      const invokeOp =
-        typeof body.invokeHostFunction === "function"
-          ? body.invokeHostFunction()
-          : body.value;
-      func =
-        typeof invokeOp.hostFunction === "function"
-          ? invokeOp.hostFunction()
-          : invokeOp.hostFunction;
+      getSwitchName(body) ??
+      (typeof body?.type === "string" ? body.type : undefined);
+    if (opType === "invokeHostFunction" && body) {
+      const invokeOp = unwrap<Record<string, unknown>>(
+        body.invokeHostFunction ?? body.value,
+      );
+      func = invokeOp ? unwrap(invokeOp.hostFunction) : undefined;
     } else {
       func = null;
     }
@@ -63,29 +61,30 @@ export async function decodeInvocation(
     };
   }
 
-  const funcSwitch =
-    func && typeof func.switch === "function" ? func.switch().name : func?.type;
+  const funcSwitch = getSwitchName(func);
 
   if (funcSwitch === "hostFunctionTypeInvokeContract") {
+    const funcRecord = (func ?? {}) as Record<string, unknown>;
     const invokeArgs =
-      typeof func.invokeContract === "function"
-        ? func.invokeContract()
-        : func.invokeContract;
-    const contractId = Address.fromScAddress(
-      typeof invokeArgs.contractAddress === "function"
-        ? invokeArgs.contractAddress()
-        : invokeArgs.contractAddress,
-    ).toString();
+      unwrap<Record<string, unknown>>(funcRecord.invokeContract) ?? funcRecord;
+
+    const addrObj = unwrap(invokeArgs.contractAddress);
+    const contractId =
+      typeof addrObj === "string"
+        ? addrObj
+        : Address.fromScAddress(addrObj as xdr.ScAddress).toString();
+
+    const rawFnName = unwrap<string | { toString: () => string }>(
+      invokeArgs.functionName,
+    );
     const functionName =
-      typeof invokeArgs.functionName === "string"
-        ? invokeArgs.functionName
-        : typeof invokeArgs.functionName?.toString === "function"
-          ? invokeArgs.functionName.toString()
+      typeof rawFnName === "string"
+        ? rawFnName
+        : typeof (rawFnName as { toString?: unknown })?.toString === "function"
+          ? (rawFnName as { toString: () => string }).toString()
           : String(invokeArgs.functionName);
-    const args =
-      typeof invokeArgs.args === "function"
-        ? invokeArgs.args()
-        : invokeArgs.args;
+
+    const args = getArray<xdr.ScVal>(invokeArgs.args);
 
     const specResult = await loadSpec(contractId, opts);
     warnings.push(...specResult.warnings);
@@ -101,7 +100,7 @@ export async function decodeInvocation(
             message: "Argument count does not match SAC definition",
           });
         }
-        decodedArgs = args.map((arg: any, i: number) => {
+        decodedArgs = args.map((arg: xdr.ScVal | unknown, i: number) => {
           const expected = sacDef.args[i];
           const res = decodeScVal(arg, null, null);
           warnings.push(...res.warnings);
@@ -112,7 +111,7 @@ export async function decodeInvocation(
           };
         });
       } else {
-        decodedArgs = args.map((arg: any) => {
+        decodedArgs = args.map((arg: xdr.ScVal | unknown) => {
           const res = decodeScVal(arg, null, null);
           warnings.push(...res.warnings);
           return { name: null, typeName: null, value: res.value };
@@ -129,20 +128,30 @@ export async function decodeInvocation(
             message: "Argument count does not match contract spec",
           });
         }
-        decodedArgs = args.map((arg: any, i: number) => {
+        decodedArgs = args.map((arg: xdr.ScVal | unknown, i: number) => {
           const input = inputs[i];
-          const name = input
-            ? typeof input.name === "string"
-              ? input.name
-              : Buffer.from(input.name as any).toString("utf8")
-            : null;
+          let name: string | null = null;
+          if (input) {
+            if (typeof input.name === "string") {
+              name = input.name;
+            } else if (
+              Buffer.isBuffer(input.name) ||
+              input.name instanceof Uint8Array
+            ) {
+              name = Buffer.from(input.name).toString("utf8");
+            } else if (input.name) {
+              name = String(input.name);
+            }
+          }
           const typeDef = input ? input.type : null;
 
-          if (typeDef) {
+          if (typeDef && arg && typeof arg === "object" && "type" in arg) {
             const expectedName = typeDef.type
               .replace("scSpecType", "")
               .toLowerCase();
-            const actualName = arg.type.replace("scv", "").toLowerCase();
+            const actualName = String((arg as { type: string }).type)
+              .replace("scv", "")
+              .toLowerCase();
 
             // Simple type mismatch check for primitives
             const isPrimitive = [
@@ -162,8 +171,6 @@ export async function decodeInvocation(
               "address",
             ].includes(expectedName);
             if (isPrimitive && expectedName !== actualName) {
-              // scSpecTypeAddress maps to scvAddress, etc.
-              // but Timepoint maps to U64, Duration to U64
               if (
                 !(expectedName === "timepoint" && actualName === "u64") &&
                 !(expectedName === "duration" && actualName === "u64")
@@ -185,14 +192,14 @@ export async function decodeInvocation(
           };
         });
       } else {
-        decodedArgs = args.map((arg: any) => {
+        decodedArgs = args.map((arg: xdr.ScVal | unknown) => {
           const res = decodeScVal(arg, null, null);
           warnings.push(...res.warnings);
           return { name: null, typeName: null, value: res.value };
         });
       }
     } else {
-      decodedArgs = args.map((arg: any) => {
+      decodedArgs = args.map((arg: xdr.ScVal | unknown) => {
         const res = decodeScVal(arg, null, null);
         warnings.push(...res.warnings);
         return { name: null, typeName: null, value: res.value };
@@ -220,82 +227,102 @@ export async function decodeInvocation(
     let deployer = "Unknown";
     let salt = "";
     let executable = "";
-    let constructorArgsDecoded: any[] = [];
+    const constructorArgsDecoded: DecodedArg[] = [];
 
     if (funcSwitch === "hostFunctionTypeCreateContract") {
-      const createArgs = func.value;
+      const funcRecord = (func ?? {}) as Record<string, unknown>;
+      const createArgs =
+        unwrap<Record<string, unknown>>(funcRecord.value) ?? funcRecord;
+
+      const pre = unwrap<Record<string, unknown>>(
+        createArgs.contractIdPreimage,
+      );
+      const preType = getSwitchName(pre);
       if (
-        createArgs.contractIdPreimage.type === "contractIdPreimageFromAddress"
+        pre &&
+        (preType === "contractIdPreimageFromAddress" ||
+          pre.type === "contractIdPreimageFromAddress")
       ) {
-        const preImg = createArgs.contractIdPreimage.value;
-        deployer = Address.fromScAddress(preImg.address).toString();
-        const rawSalt = (preImg.salt as any)?.value ?? preImg.salt;
-        salt = Buffer.from(rawSalt as any).toString("hex");
+        const preImg = unwrap<Record<string, unknown>>(pre.value) ?? pre;
+        const addressVal = unwrap(preImg.address);
+        if (addressVal) {
+          deployer =
+            typeof addressVal === "string"
+              ? addressVal
+              : Address.fromScAddress(addressVal as xdr.ScAddress).toString();
+        }
+        const saltBuf = toBuffer(preImg.salt);
+        if (saltBuf) salt = saltBuf.toString("hex");
       }
-      if (createArgs.executable.type === "contractExecutableWasm") {
-        const rawWasm =
-          (createArgs.executable.value as any)?.value ??
-          createArgs.executable.value;
-        executable = Buffer.from(rawWasm as any).toString("hex");
+
+      const exec = unwrap<Record<string, unknown>>(createArgs.executable);
+      const execType = getSwitchName(exec);
+      if (
+        exec &&
+        (execType === "contractExecutableWasm" ||
+          exec.type === "contractExecutableWasm")
+      ) {
+        const rawWasm = unwrap(exec.value);
+        const wasmBuf = toBuffer(rawWasm);
+        if (wasmBuf) executable = wasmBuf.toString("hex");
       } else if (
-        createArgs.executable.type === "contractExecutableStellarAsset"
+        exec &&
+        (execType === "contractExecutableStellarAsset" ||
+          exec.type === "contractExecutableStellarAsset")
       ) {
         executable = "Stellar Asset";
       }
     } else {
       // hostFunctionTypeCreateContractV2
+      const funcRecord = (func ?? {}) as Record<string, unknown>;
       const createArgs =
-        typeof func.createContractV2 === "function"
-          ? func.createContractV2()
-          : func.value || func._attributes;
-      const preimage =
-        typeof createArgs.contractIdPreimage === "function"
-          ? createArgs.contractIdPreimage()
-          : createArgs.contractIdPreimage;
+        unwrap<Record<string, unknown>>(
+          funcRecord.createContractV2 ??
+            funcRecord.value ??
+            (funcRecord as { _attributes?: unknown })._attributes,
+        ) ?? funcRecord;
+
+      const preimage = unwrap<Record<string, unknown>>(
+        createArgs.contractIdPreimage,
+      );
+      const preType = getSwitchName(preimage);
       if (
-        preimage && typeof preimage.switch === "function"
-          ? preimage.switch().name === "contractIdPreimageFromAddress"
-          : preimage.type === "contractIdPreimageFromAddress"
+        preimage &&
+        (preType === "contractIdPreimageFromAddress" ||
+          preimage.type === "contractIdPreimageFromAddress")
       ) {
         const preImg =
-          typeof preimage.value === "function"
-            ? preimage.value()
-            : preimage.value;
-        const addressVal =
-          typeof preImg.address === "function"
-            ? preImg.address()
-            : preImg.address;
-        deployer = Address.fromScAddress(addressVal).toString();
-        const rawSalt =
-          typeof preImg.salt === "function" ? preImg.salt() : preImg.salt;
-        salt = Buffer.from(rawSalt).toString("hex");
+          unwrap<Record<string, unknown>>(preimage.value) ?? preimage;
+        const addressVal = unwrap(preImg.address);
+        if (addressVal) {
+          deployer =
+            typeof addressVal === "string"
+              ? addressVal
+              : Address.fromScAddress(addressVal as xdr.ScAddress).toString();
+        }
+        const saltBuf = toBuffer(preImg.salt);
+        if (saltBuf) salt = saltBuf.toString("hex");
       }
-      const exec =
-        typeof createArgs.executable === "function"
-          ? createArgs.executable()
-          : createArgs.executable;
+
+      const exec = unwrap<Record<string, unknown>>(createArgs.executable);
+      const execType = getSwitchName(exec);
       if (
-        exec && typeof exec.switch === "function"
-          ? exec.switch().name === "contractExecutableWasm"
-          : exec.type === "contractExecutableWasm"
+        exec &&
+        (execType === "contractExecutableWasm" ||
+          exec.type === "contractExecutableWasm")
       ) {
-        const rawWasm =
-          typeof exec.wasmId === "function"
-            ? exec.wasmId()
-            : exec.value || exec.wasmId;
-        executable = Buffer.from(rawWasm).toString("hex");
+        const rawWasm = unwrap(exec.wasmId ?? exec.value);
+        const wasmBuf = toBuffer(rawWasm);
+        if (wasmBuf) executable = wasmBuf.toString("hex");
       } else if (
-        exec && typeof exec.switch === "function"
-          ? exec.switch().name === "contractExecutableStellarAsset"
-          : exec.type === "contractExecutableStellarAsset"
+        exec &&
+        (execType === "contractExecutableStellarAsset" ||
+          exec.type === "contractExecutableStellarAsset")
       ) {
         executable = "Stellar Asset";
       }
 
-      const cArgs =
-        typeof createArgs.constructorArgs === "function"
-          ? createArgs.constructorArgs()
-          : createArgs.constructorArgs || [];
+      const cArgs = getArray<xdr.ScVal>(createArgs.constructorArgs);
       for (const arg of cArgs) {
         const res = decodeScVal(arg, null, null);
         warnings.push(...res.warnings);
@@ -307,7 +334,7 @@ export async function decodeInvocation(
       }
     }
 
-    const baseArgs = [
+    const baseArgs: DecodedArg[] = [
       {
         name: "deployer",
         typeName: "address",
@@ -315,7 +342,7 @@ export async function decodeInvocation(
           kind: "address",
           value: deployer,
           addressType: "account",
-        } as any,
+        },
       },
       {
         name: "salt",
@@ -325,7 +352,7 @@ export async function decodeInvocation(
           hex: salt,
           length: salt.length / 2,
           truncated: false,
-        } as any,
+        },
       },
       {
         name: "executable",
@@ -335,7 +362,7 @@ export async function decodeInvocation(
           value: executable,
           sanitized: false,
           truncated: false,
-        } as any,
+        },
       },
     ];
 
@@ -363,8 +390,12 @@ export async function decodeInvocation(
       code: "WASM_UPLOAD",
       message: "Transaction uploads contract code",
     });
-    const wasmBytes = (func.value as any)?.value ?? func.value;
-    const wasmHash = Buffer.from(hash(wasmBytes) as any).toString("hex");
+
+    const funcRecord = (func ?? {}) as Record<string, unknown>;
+    const rawVal = unwrap(funcRecord.value);
+    const wasmBytes = toBuffer(rawVal) ?? Buffer.alloc(0);
+    const wasmHash = Buffer.from(hash(wasmBytes)).toString("hex");
+
     return {
       invocation: {
         contractId: "Upload",
