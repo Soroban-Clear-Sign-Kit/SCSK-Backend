@@ -19,6 +19,14 @@ export async function decodeInvocation(
   if (op.type && !op.body) {
     opType = op.type;
     func = op.func;
+  } else if (
+    (typeof op.switch === "function" &&
+      op.switch().name.startsWith("hostFunctionType")) ||
+    op.hostFunction !== undefined ||
+    op.invokeContract !== undefined
+  ) {
+    opType = "invokeHostFunction";
+    func = op.hostFunction || op;
   } else {
     const body = typeof op.body === "function" ? op.body() : op.body;
     opType =
