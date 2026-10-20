@@ -92,7 +92,11 @@ export interface ClearSignPreview {
     message: string;
     path?: string;
   }[];
-  network: { passphrase: string; verified: boolean };
+  network: {
+    passphrase: string;
+    rpcMatches: boolean;
+    signatureBound: boolean;
+  };
   envelope: {
     source: string;
     sequence: string;

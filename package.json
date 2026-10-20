@@ -36,11 +36,12 @@
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
     "prepublishOnly": "pnpm run check && pnpm run build"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@stellar/stellar-sdk": "17.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stellar/stellar-sdk": "17.2.1",
     "@types/node": "^22.5.5",
     "@vitest/coverage-v8": "^2.1.1",
     "eslint": "^10.12.0",

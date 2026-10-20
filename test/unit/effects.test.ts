@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { extractTokenEffects } from "../../src/effects.js";
 import { xdr } from "@stellar/stellar-sdk";
 
@@ -283,6 +283,7 @@ describe("extractTokenEffects", () => {
   });
 
   it("warns instead of logging when an event's contract ID is invalid", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const topics = [
       xdr.ScVal.scvSymbol("mint"),
       xdr.ScVal.scvAddress(
@@ -305,6 +306,8 @@ describe("extractTokenEffects", () => {
                 new xdr.Int128Parts({
                   hi: xdr.Int64.fromString("0"),
                   lo: xdr.Uint64.fromString("5"),
+                  hi: 0n,
+                  lo: 5n,
                 }),
               ),
             }),
@@ -319,5 +322,7 @@ describe("extractTokenEffects", () => {
     expect(res.warnings).toContainEqual(
       expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
     );
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

@@ -3,6 +3,8 @@ import {
   TransactionBuilder,
   Transaction,
   MuxedAccount,
+  Keypair,
+  xdr,
 } from "@stellar/stellar-sdk";
 import { MAX_XDR_BASE64_LENGTH } from "./limits.js";
 import { WarningCode } from "./errors.js";
@@ -26,16 +28,78 @@ export type ParseResult =
       };
       innerTransaction: Transaction;
       warnings: EnvelopeWarning[];
+      signatureBound: boolean;
     }
   | {
       success: false;
       error: EnvelopeWarning;
     };
 
+export interface ParseEnvelopeOptions {
+  now?: (() => number) | number | undefined;
+}
+
+function getSignatureBytes(val: any): Buffer {
+  if (!val) return Buffer.alloc(0);
+  if (typeof val === "function") val = val();
+  if (val && typeof val === "object" && "value" in val) val = val.value;
+  return Buffer.from(val);
+}
+
+function getBaseAccountId(address: string): string {
+  if (address.startsWith("M")) {
+    try {
+      const muxed = MuxedAccount.fromAddress(address, "0");
+      return muxed.baseAccount().accountId();
+    } catch {
+      // ignore
+    }
+  }
+  return address;
+}
+
+function verifySignaturesForAccount(
+  accountPublicKey: string,
+  signatures: xdr.DecoratedSignature[] | undefined,
+  hash: Buffer,
+): { checked: boolean; valid: boolean } {
+  if (!signatures || signatures.length === 0) {
+    return { checked: false, valid: true };
+  }
+
+  let kp: Keypair;
+  try {
+    const baseAccount = getBaseAccountId(accountPublicKey);
+    kp = Keypair.fromPublicKey(baseAccount);
+  } catch {
+    return { checked: false, valid: true };
+  }
+
+  const hint = Buffer.from(kp.signatureHint());
+  const matching = signatures.filter((s: any) => {
+    const sHint = getSignatureBytes(s.hint);
+    return sHint.equals(hint);
+  });
+
+  if (matching.length === 0) {
+    return { checked: false, valid: true };
+  }
+
+  for (const s of matching) {
+    const rawSig = getSignatureBytes((s as any).signature);
+    if (!kp.verify(hash, rawSig)) {
+      return { checked: true, valid: false };
+    }
+  }
+
+  return { checked: true, valid: true };
+}
+
 export function parseEnvelope(
   xdrInput: string,
   networkPassphrase?: string,
   rpcPassphrase?: string,
+  options?: ParseEnvelopeOptions,
 ): ParseResult {
   const xdr = (xdrInput || "").trim();
 
@@ -109,7 +173,13 @@ export function parseEnvelope(
     parsedTimeBounds = { min: timeBounds.minTime, max: timeBounds.maxTime };
     if (timeBounds.maxTime !== "0") {
       const maxTimeMs = parseInt(timeBounds.maxTime, 10) * 1000;
-      if (maxTimeMs < Date.now()) {
+      const getNow =
+        typeof options?.now === "function"
+          ? options.now
+          : options?.now !== undefined
+            ? () => options.now as number
+            : Date.now;
+      if (maxTimeMs < getNow()) {
         warnings.push({
           code: "TX_EXPIRED",
           message: "Time bounds have already expired",
@@ -191,10 +261,52 @@ export function parseEnvelope(
   if (parsedMemo) resultEnvelope.memo = parsedMemo;
   if (parsedTimeBounds) resultEnvelope.timeBounds = parsedTimeBounds;
 
+  let signatureBound = false;
+  let signatureInvalid = false;
+
+  if (tx instanceof FeeBumpTransaction) {
+    const feeRes = verifySignaturesForAccount(
+      tx.feeSource,
+      tx.signatures,
+      Buffer.from(tx.hash()),
+    );
+    const innerRes = verifySignaturesForAccount(
+      tx.innerTransaction.source,
+      tx.innerTransaction.signatures,
+      Buffer.from(tx.innerTransaction.hash()),
+    );
+
+    if (!feeRes.valid || !innerRes.valid) {
+      signatureInvalid = true;
+    } else if (feeRes.checked || innerRes.checked) {
+      signatureBound = true;
+    }
+  } else {
+    const res = verifySignaturesForAccount(
+      tx.source,
+      tx.signatures,
+      Buffer.from(tx.hash()),
+    );
+    if (!res.valid) {
+      signatureInvalid = true;
+    } else if (res.checked) {
+      signatureBound = true;
+    }
+  }
+
+  if (signatureInvalid) {
+    warnings.push({
+      code: "SIGNATURE_INVALID",
+      message: "Envelope signature is invalid for the specified network or key",
+    });
+    signatureBound = false;
+  }
+
   return {
     success: true,
     envelope: resultEnvelope,
     innerTransaction,
     warnings,
+    signatureBound,
   };
 }
