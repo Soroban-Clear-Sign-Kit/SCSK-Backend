@@ -5,22 +5,13 @@ import { xdr, Address, StrKey } from "@stellar/stellar-sdk";
  * Replaces ad-hoc `any` casts when navigating js-xdr objects or parsed simulation outputs.
  */
 
-/** Safely calls getter if function, unwrap .value if present, or returns val */
+/** Safely calls getter if function, or returns val */
 export function unwrap<T = unknown>(val: unknown): T | undefined {
   if (val === undefined || val === null) return undefined;
-  let current: unknown = val;
-  if (typeof current === "function") {
-    current = (current as () => unknown)();
+  if (typeof val === "function") {
+    return (val as () => T)();
   }
-  if (
-    current &&
-    typeof current === "object" &&
-    "value" in current &&
-    (current as { value: unknown }).value !== undefined
-  ) {
-    current = (current as { value: unknown }).value;
-  }
-  return current as T;
+  return val as T;
 }
 
 /** Extracts union arm or switch name (e.g. "contractEventTypeContract", "scvVoid", "source_account") */

@@ -1,6 +1,7 @@
 import { xdr, Address, StrKey } from "@stellar/stellar-sdk";
 import { WarningCode } from "./errors.js";
 import { BalanceDelta } from "./types.js";
+import { unwrap, getSwitchName, getArray } from "./accessors.js";
 
 export function extractTokenEffects(
   events: xdr.DiagnosticEvent[] | undefined,
@@ -16,26 +17,32 @@ export function extractTokenEffects(
   const deltas: Record<string, Record<string, bigint>> = {}; // contractId -> account -> delta
 
   for (const diagnosticEvent of events) {
-    const isSuccess =
-      diagnosticEvent.inSuccessfulContractCall ??
-      (diagnosticEvent as any).in_successful_contract_call;
+    const eventObj = diagnosticEvent as unknown as Record<string, unknown>;
+    const isSuccess = Boolean(
+      unwrap(
+        eventObj.inSuccessfulContractCall ??
+          eventObj.in_successful_contract_call,
+      ),
+    );
     if (!isSuccess) continue;
-    const event: any = diagnosticEvent.event;
 
-    const eventType: any =
-      typeof event.type === "function" ? event.type() : event.type;
+    const rawEvent = unwrap<Record<string, unknown>>(eventObj.event);
+    if (!rawEvent) continue;
+
+    const eventType =
+      getSwitchName(rawEvent.type) ??
+      (typeof rawEvent.type === "string" ? rawEvent.type : undefined);
     if (
       eventType !== "contract" &&
-      eventType?.name !== "contractEventTypeContract" &&
-      eventType?.name !== "contract" &&
-      eventType?.value !== 1
-    )
+      eventType !== "contractEventTypeContract" &&
+      unwrap<number>(rawEvent.type) !== 1
+    ) {
       continue;
+    }
 
-    const eventContractIdRaw =
-      (typeof event.contractId === "function"
-        ? event.contractId()
-        : event.contractId) ?? event.contract_id;
+    const eventContractIdRaw = unwrap(
+      rawEvent.contractId ?? rawEvent.contract_id,
+    );
     let eventContractId: Buffer | Uint8Array | null = null;
     if (eventContractIdRaw) {
       if (typeof eventContractIdRaw === "string") {
@@ -54,13 +61,22 @@ export function extractTokenEffects(
       ) {
         eventContractId = eventContractIdRaw;
       } else if (
-        eventContractIdRaw.value &&
-        (Buffer.isBuffer(eventContractIdRaw.value) ||
-          eventContractIdRaw.value instanceof Uint8Array)
+        typeof eventContractIdRaw === "object" &&
+        eventContractIdRaw !== null &&
+        "value" in eventContractIdRaw &&
+        (Buffer.isBuffer((eventContractIdRaw as { value: unknown }).value) ||
+          (eventContractIdRaw as { value: unknown }).value instanceof
+            Uint8Array)
       ) {
-        eventContractId = eventContractIdRaw.value;
-      } else if (typeof eventContractIdRaw.toString === "function") {
-        const hex = eventContractIdRaw.toString("hex");
+        eventContractId = (eventContractIdRaw as { value: Buffer | Uint8Array })
+          .value;
+      } else if (
+        typeof (eventContractIdRaw as { toString?: unknown }).toString ===
+        "function"
+      ) {
+        const hex = (
+          eventContractIdRaw as { toString: (enc?: string) => string }
+        ).toString("hex");
         if (hex && hex.length === 64) eventContractId = Buffer.from(hex, "hex");
       }
     }
@@ -81,26 +97,22 @@ export function extractTokenEffects(
     }
     if (!contractId) continue;
 
-    const eventBody =
-      typeof event.body === "function" ? event.body() : event.body;
-    const bodyValue =
-      typeof eventBody.value === "function"
-        ? eventBody.value()
-        : eventBody.v0 || eventBody.value;
+    const eventBody = unwrap<Record<string, unknown>>(rawEvent.body);
+    if (!eventBody) continue;
+    const bodyValue = unwrap<Record<string, unknown>>(
+      eventBody.v0 ?? eventBody.value ?? eventBody,
+    );
 
     if (!bodyValue || !bodyValue.topics || !bodyValue.data) continue;
-    const topics = (
-      typeof bodyValue.topics === "function"
-        ? bodyValue.topics()
-        : bodyValue.topics
-    ) as xdr.ScVal[];
+    const topics = getArray<xdr.ScVal>(bodyValue.topics);
     if (topics.length < 1) continue;
 
-    const topic0: any = topics[0];
-    const topic0Type =
-      typeof topic0.switch === "function" ? topic0.switch().name : topic0.type;
+    const topic0 = topics[0];
+    const topic0Type = getSwitchName(topic0);
     if (topic0Type !== "scvSymbol") continue;
-    const rawSym = typeof topic0.sym === "function" ? topic0.sym() : topic0.sym;
+    const rawSym = unwrap<Buffer | string | { toString: () => string }>(
+      (topic0 as unknown as Record<string, unknown>).sym,
+    );
     const action = rawSym ? rawSym.toString() : "";
 
     let from: string | null = null;
@@ -110,36 +122,16 @@ export function extractTokenEffects(
     if (action === "transfer" && topics.length >= 3) {
       from = extractAddress(topics[1]);
       to = extractAddress(topics[2]);
-      amount = extractAmount(
-        typeof bodyValue.data === "function"
-          ? bodyValue.data()
-          : bodyValue.data,
-        warnings,
-      );
+      amount = extractAmount(unwrap(bodyValue.data), warnings);
     } else if (action === "mint" && topics.length >= 2) {
       to = extractAddress(topics[1]);
-      amount = extractAmount(
-        typeof bodyValue.data === "function"
-          ? bodyValue.data()
-          : bodyValue.data,
-        warnings,
-      );
+      amount = extractAmount(unwrap(bodyValue.data), warnings);
     } else if (action === "burn" && topics.length >= 2) {
       from = extractAddress(topics[1]);
-      amount = extractAmount(
-        typeof bodyValue.data === "function"
-          ? bodyValue.data()
-          : bodyValue.data,
-        warnings,
-      );
+      amount = extractAmount(unwrap(bodyValue.data), warnings);
     } else if (action === "clawback" && topics.length >= 2) {
       from = extractAddress(topics[1]);
-      amount = extractAmount(
-        typeof bodyValue.data === "function"
-          ? bodyValue.data()
-          : bodyValue.data,
-        warnings,
-      );
+      amount = extractAmount(unwrap(bodyValue.data), warnings);
     }
 
     if (amount !== null) {
@@ -169,49 +161,53 @@ export function extractTokenEffects(
   return { effects, warnings };
 }
 
-function extractAddress(scval: xdr.ScVal | undefined): string | null {
+function extractAddress(scval: xdr.ScVal | unknown): string | null {
   if (!scval) return null;
-  const val: any = scval;
-  const type = typeof val.switch === "function" ? val.switch().name : val.type;
+  const val = scval as Record<string, unknown>;
+  const type = getSwitchName(val);
   if (type === "scvAddress") {
     const address =
-      typeof val.address === "function" ? val.address() : val.address;
-    return Address.fromScAddress(address).toString();
+      typeof val.address === "function"
+        ? (val.address as () => unknown)()
+        : val.address;
+    if (address) {
+      try {
+        return Address.fromScAddress(address as xdr.ScAddress).toString();
+      } catch {
+        return null;
+      }
+    }
   }
   return null;
 }
 
 function extractAmount(
-  data: xdr.ScVal | undefined,
+  data: xdr.ScVal | unknown,
   warnings: { code: WarningCode; message: string }[],
 ): bigint | null {
   if (!data) return null;
-  const val: any = data;
-  const type = typeof val.switch === "function" ? val.switch().name : val.type;
+  const type = getSwitchName(data);
+  const val = data as Record<string, unknown>;
+
   if (type === "scvI128") {
-    const parts = typeof val.i128 === "function" ? val.i128() : val.i128;
-    const lo = BigInt(
-      (typeof parts.lo === "function" ? parts.lo() : parts.lo).toString(),
-    );
-    const hi = BigInt(
-      (typeof parts.hi === "function" ? parts.hi() : parts.hi).toString(),
-    );
-    return (hi << 64n) | lo;
+    const parts = unwrap<Record<string, unknown>>(val.i128);
+    if (parts) {
+      const loRaw = unwrap<bigint | number | string>(parts.lo);
+      const hiRaw = unwrap<bigint | number | string>(parts.hi);
+      const lo = BigInt(loRaw?.toString() ?? "0");
+      const hi = BigInt(hiRaw?.toString() ?? "0");
+      return (hi << 64n) | lo;
+    }
   } else if (type === "scvMap") {
-    const entries = typeof val.map === "function" ? val.map() : val.map;
-    if (entries) {
-      for (const entry of entries) {
-        const key: any =
-          typeof entry.key === "function" ? entry.key() : entry.key;
-        const keyType =
-          typeof key.switch === "function" ? key.switch().name : key.type;
-        const keySym = typeof key.sym === "function" ? key.sym() : key.sym;
-        if (keyType === "scvSymbol" && keySym.toString() === "amount") {
-          return extractAmount(
-            typeof entry.val === "function" ? entry.val() : entry.val,
-            warnings,
-          );
-        }
+    const entries = getArray<Record<string, unknown>>(val.map);
+    for (const entry of entries) {
+      const key = unwrap<Record<string, unknown>>(entry.key);
+      const keyType = getSwitchName(key);
+      const keySym = unwrap<Buffer | string | { toString: () => string }>(
+        key ? (key as Record<string, unknown>).sym : undefined,
+      );
+      if (keyType === "scvSymbol" && keySym && keySym.toString() === "amount") {
+        return extractAmount(unwrap(entry.val), warnings);
       }
     }
   }
