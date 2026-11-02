@@ -27,6 +27,8 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test",
+    "lint:fix": "eslint src test --fix",
+    "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",

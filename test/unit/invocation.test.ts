@@ -587,4 +587,117 @@ describe("decodeInvocation", () => {
     });
     expect(res.invocation.functionName).toBe("unknown");
   });
+
+  it("decodes createContractV2 with string address and token executable", async () => {
+    const keypair = Keypair.random();
+    const op = {
+      type: "invokeHostFunction",
+      func: {
+        type: "hostFunctionTypeCreateContractV2",
+        _attributes: {
+          contractIdPreimage: {
+            type: "contractIdPreimageFromAddress",
+            value: {
+              address: keypair.publicKey(), // string address
+              salt: Buffer.alloc(32),
+            },
+          },
+          executable: {
+            type: "contractExecutableToken",
+          },
+          constructorArgs: [],
+        },
+      },
+    };
+
+    const res = await decodeInvocation(op, {
+      rpcUrl: "",
+      networkPassphrase: "",
+    });
+    expect(res.invocation.contractId).toBe("Deploy");
+    expect((res.invocation.args[0]?.value as any)?.value).toBe(
+      keypair.publicKey(),
+    );
+  });
+
+  it("decodes createContract v1 with string address and stellar asset executable", async () => {
+    const keypair = Keypair.random();
+    const op = {
+      type: "invokeHostFunction",
+      func: {
+        type: "hostFunctionTypeCreateContract",
+        _attributes: {
+          contractIdPreimage: {
+            type: "contractIdPreimageFromAddress",
+            value: {
+              address: keypair.publicKey(), // string address
+              salt: Buffer.alloc(32),
+            },
+          },
+          executable: {
+            type: "contractExecutableStellarAsset",
+          },
+        },
+      },
+    };
+
+    const res = await decodeInvocation(op, {
+      rpcUrl: "",
+      networkPassphrase: "",
+    });
+    expect(res.invocation.contractId).toBe("Deploy");
+    const execArg = res.invocation.args.find((a) => a.name === "executable");
+    expect((execArg?.value as any)?.value).toBe("Stellar Asset");
+  });
+
+  it("decodes input name as Buffer or Uint8Array in invocation", async () => {
+    const keypair = Keypair.random();
+    const op = {
+      type: "invokeHostFunction",
+      func: {
+        type: "hostFunctionTypeInvokeContract",
+        invokeContract: {
+          contractAddress: Address.fromString(
+            keypair.publicKey(),
+          ).toScAddress(),
+          functionName: "swap",
+          args: [{ type: "scvI32" }, { type: "scvI32" }, { type: "scvI32" }],
+        },
+      },
+    };
+
+    const mockSpec = {
+      getFunc: () => ({
+        inputs: [
+          { name: Buffer.from("argBuf"), type: { type: "scSpecTypeU32" } },
+          {
+            name: new Uint8Array([97, 114, 103, 50]),
+            type: { type: "scSpecTypeU32" },
+          },
+          {
+            name: { toString: () => "argObj" },
+            type: { type: "scSpecTypeU32" },
+          },
+        ],
+      }),
+    };
+
+    vi.mocked(spec.loadSpec).mockResolvedValue({
+      spec: mockSpec as any,
+      source: "wasm",
+      warnings: [],
+    });
+    vi.mocked(scval.decodeScVal).mockReturnValue({
+      value: { kind: "int", type: "u32", value: "1" } as any,
+      warnings: [],
+    });
+
+    const res = await decodeInvocation(op, {
+      rpcUrl: "",
+      networkPassphrase: "",
+    });
+    expect(res.invocation.args[0]?.name).toBe("argBuf");
+    expect(res.invocation.args[1]?.name).toBe("arg2");
+    expect(res.invocation.args[2]?.name).toBe("argObj");
+  });
 });

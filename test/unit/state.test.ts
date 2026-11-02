@@ -76,4 +76,54 @@ describe("decodeLedgerEntry", () => {
     );
     expect(res.entryType).toBe("account");
   });
+
+  it("decodes parsed JSON fixture contract_data and trustline ledger entries", async () => {
+    (loadSpec as any).mockResolvedValue({
+      spec: null,
+      source: "none",
+      warnings: [],
+    });
+
+    const contractDataJson = {
+      last_modified_ledger_seq: 5088095,
+      data: {
+        contract_data: {
+          contract: contractId,
+          key: { symbol: "Balance" },
+          durability: "persistent",
+          val: { i128: "5000" },
+        },
+      },
+      ext: "v0",
+    };
+
+    const res1 = await decodeLedgerEntry(contractDataJson, { rpcUrl: "" });
+    expect(res1.entryType).toBe("contractData");
+    expect(res1.contractId).toBe(contractId);
+    expect(res1.key).toEqual({
+      kind: "symbol",
+      value: "Balance",
+      sanitized: false,
+      truncated: false,
+    });
+    expect(res1.val).toEqual({ kind: "int", type: "i128", value: "5000" });
+
+    const trustlineJson = {
+      last_modified_ledger_seq: 5088095,
+      data: {
+        trustline: {
+          account_id:
+            "GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2",
+          balance: "1000000000",
+        },
+      },
+      ext: "v0",
+    };
+
+    const res2 = await decodeLedgerEntry(trustlineJson, { rpcUrl: "" });
+    expect(res2.entryType).toBe("trustline");
+    expect(res2.warnings).toContainEqual(
+      expect.objectContaining({ code: "UNSUPPORTED_SCVAL" }),
+    );
+  });
 });

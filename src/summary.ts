@@ -1,4 +1,4 @@
-import { Invocation, AuthEntry, BalanceDelta } from "./types.js";
+import { Invocation, AuthEntry, AuthNode, BalanceDelta } from "./types.js";
 import { SimulationResult } from "./simulate.js";
 import { en, LocaleStrings } from "./locales/en.js";
 
@@ -72,7 +72,7 @@ export function generateSummary(
     const contractSet = new Set<string>();
 
     for (const entry of auth) {
-      const walk = (node: any) => {
+      const walk = (node: AuthNode) => {
         if (node.kind === "contract-fn") {
           callCount++;
           if (node.contractId) contractSet.add(node.contractId);

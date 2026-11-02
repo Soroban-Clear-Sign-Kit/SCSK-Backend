@@ -154,6 +154,59 @@ interface BalanceDelta {
 }
 ```
 
+### `SimulationSummary`
+
+```typescript
+interface SimulationResourceUsage {
+  instructions: number;
+  readBytes: number;
+  writeBytes: number;
+  readEntries: number;
+  writeEntries: number;
+  resourceFee?: string;
+  footprint: {
+    readOnly: string[];
+    readWrite: string[];
+  };
+}
+
+interface SimulationRestorePreamble {
+  minResourceFee: string;
+  footprint: {
+    readOnly: string[];
+    readWrite: string[];
+  };
+  entries: string[];
+}
+
+interface SimulationStateChange {
+  type: "created" | "updated" | "deleted" | "unknown";
+  key: unknown;
+  before: xdr.LedgerEntry | unknown | null;
+  after: xdr.LedgerEntry | unknown | null;
+}
+
+interface SimulationSummary {
+  status: "success" | "failed" | "needs-restore" | "unavailable";
+  risk: "ok" | "review" | "blocked";
+  latestLedger?: number;
+  minResourceFee?: string;
+  error?: string;
+  returnValue?: xdr.ScVal | unknown;
+  resources?: SimulationResourceUsage;
+  restorePreamble?: SimulationRestorePreamble;
+  auth: (xdr.SorobanAuthorizationEntry | unknown)[];
+  events: (xdr.ContractEvent | unknown)[];
+  diagnosticEvents: (xdr.DiagnosticEvent | unknown)[];
+  stateChanges: SimulationStateChange[];
+  warnings: {
+    code: WarningCode;
+    severity: "review" | "blocked";
+    message: string;
+  }[];
+}
+```
+
 ### `DisplayValue`
 
 A structured, human-readable recursive representation of `ScVal`s:
@@ -228,4 +281,9 @@ type DisplayValue =
 | `INTENT_SPEND_EXCEEDED`      | `blocked` | Negative token delta for the signer exceeds the maxSpend in the Intent.                                |
 | `INTENT_UNEXPECTED_AUTH`     | `blocked` | Signer auth entry targets a contract not present in allowedContracts.                                  |
 | `INTENT_UNVERIFIABLE`        | `blocked` | App Intent requires named argument verification but contract spec is missing.                          |
+| `UNLIMITED_APPROVAL`         | `review`  | Token approval amount is at the `i128` maximum (`2^127 - 1`).                                          |
+| `APPROVAL_NEW_SPENDER`       | `review`  | Token approval targets a spender address not present in `knownSpenders`.                               |
+| `TRANSFER_FROM`              | `review`  | Invocation executes `transfer_from` using a delegated token allowance.                                 |
+| `ADMIN_CHANGE`               | `blocked` | Invocation modifies contract administrator or ownership privileges.                                    |
+| `CONTRACT_WASM_UPDATE`       | `blocked` | Invocation updates or replaces executable contract Wasm code.                                          |
 | `INTERNAL_ERROR`             | `blocked` | Hard unhandled exception within the clear-sign build process.                                          |

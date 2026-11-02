@@ -1,8 +1,9 @@
-import { xdr, StrKey, contract } from "@stellar/stellar-sdk";
+import { xdr, contract } from "@stellar/stellar-sdk";
 import { SpecLoaderOptions, loadSpec } from "./spec.js";
 import { decodeScVal } from "./scval.js";
 import { WarningCode } from "./errors.js";
 import { DisplayValue } from "./types.js";
+import { unwrap, getSwitchName, toContractId, getArray } from "./accessors.js";
 
 export interface DecodedEvent {
   contractId: string | null;
@@ -15,19 +16,21 @@ export interface DecodedEvent {
 }
 
 export async function decodeEvent(
-  event: xdr.ContractEvent,
+  event: xdr.ContractEvent | unknown,
   opts: SpecLoaderOptions,
 ): Promise<DecodedEvent> {
   const warnings: { code: WarningCode; message: string }[] = [];
+  const rawObj = (event ?? {}) as Record<string, unknown>;
+  const eventObj = unwrap<Record<string, unknown>>(rawObj.event) ?? rawObj;
 
-  let contractId: string | null = null;
-  if (event.contractId) {
-    contractId = StrKey.encodeContract(new Uint8Array(event.contractId as any));
-  }
+  const contractId = toContractId(
+    eventObj.contractId ?? eventObj.contract_id ?? null,
+  );
 
   let type: "system" | "contract" | "diagnostic" | "unknown" = "unknown";
   const typeStr =
-    typeof event.type === "string" ? event.type : (event.type as any).name;
+    getSwitchName(eventObj.type) ??
+    (typeof eventObj.type === "string" ? eventObj.type : undefined);
   if (typeStr === "contractEventTypeSystem" || typeStr === "system")
     type = "system";
   else if (typeStr === "contractEventTypeContract" || typeStr === "contract")
@@ -38,9 +41,14 @@ export async function decodeEvent(
   )
     type = "diagnostic";
 
-  const body = event.body.value;
-  const topicsScVal = body.topics || [];
-  const dataScVal = body.data;
+  const rawBody = unwrap<Record<string, unknown>>(eventObj.body);
+  const body = rawBody
+    ? (unwrap<Record<string, unknown>>(rawBody.v0) ??
+      unwrap<Record<string, unknown>>(rawBody.value) ??
+      rawBody)
+    : {};
+  const topicsScVal = getArray<xdr.ScVal | unknown>(body.topics);
+  const dataScVal = unwrap(body.data);
 
   let specSource: "wasm" | "injected" | "sac-builtin" | "none" = "none";
   let eventName: string | null = null;
@@ -68,7 +76,14 @@ export async function decodeEvent(
           let match = true;
           for (let i = 0; i < topicsDefs.length; i++) {
             const defType = topicsDefs[i].type;
-            const valType = topicsScVal[i]?.type;
+            const topicItem = topicsScVal[i];
+            const valType =
+              getSwitchName(topicItem) ??
+              (topicItem &&
+              typeof topicItem === "object" &&
+              "symbol" in topicItem
+                ? "scvSymbol"
+                : undefined);
             // A basic check: if def says it's a symbol and it is a symbol, it's a potential match.
             // A perfect match would decode the first topic and compare it to the event name?
             // Actually, Soroban events don't strictly require the first topic to be the name, but usually it is.

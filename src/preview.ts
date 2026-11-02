@@ -5,12 +5,13 @@ import {
   Invocation,
   BalanceDelta,
 } from "./types.js";
-import { rpc } from "@stellar/stellar-sdk";
-import { SimulationResult } from "./simulate.js";
+import { rpc, xdr, Operation } from "@stellar/stellar-sdk";
+import { SimulationResult, SimulateOptions } from "./simulate.js";
 import { WarningCode, WARNING_SEVERITY } from "./errors.js";
 import { parseEnvelope } from "./envelope.js";
 import { decodeInvocation } from "./invocation.js";
-import { decodeAuthEntries } from "./auth.js";
+import { SpecLoaderOptions } from "./spec.js";
+import { decodeAuthEntries, AuthDecodeOptions } from "./auth.js";
 import { simulateTransaction } from "./simulate.js";
 import { extractTokenEffects } from "./effects.js";
 import { resolveTokenMetadata } from "./tokens.js";
@@ -213,10 +214,13 @@ export async function buildPreview(
     }
 
     // Auth
-    let authXdr: any[] = [];
+    let authXdr: (xdr.SorobanAuthorizationEntry | unknown)[] = [];
     for (const op of innerTx.operations) {
-      if (op.type === "invokeHostFunction" && (op as any).auth) {
-        authXdr = authXdr.concat((op as any).auth);
+      if (op.type === "invokeHostFunction") {
+        const hostOp = op as Operation.InvokeHostFunction;
+        if (hostOp.auth) {
+          authXdr = authXdr.concat(hostOp.auth);
+        }
       }
     }
     if (authXdr.length === 0 && simulation.auth) {
@@ -287,7 +291,7 @@ export async function buildPreview(
         feeBump: envResult.envelope.feeBump,
         memo: envResult.envelope.memo,
         timeBounds: envResult.envelope.timeBounds,
-        operations: envResult.envelope.operations.map((o: any) => ({
+        operations: envResult.envelope.operations.map((o) => ({
           type: o.type,
           decoded: o.decoded,
         })),
@@ -307,13 +311,22 @@ export async function buildPreview(
     };
 
     return sanitizeRecursive(preview) as ClearSignPreview;
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (input.options?.debug) {
-      console.error("INTERNAL_ERROR Stack:", err.stack);
+      console.error(
+        "INTERNAL_ERROR Stack:",
+        err instanceof Error ? err.stack : undefined,
+      );
     }
+    const message =
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Unknown error";
     const w = {
       code: "INTERNAL_ERROR" as WarningCode,
-      message: err.message || "Unknown error",
+      message,
       severity: "blocked" as const,
     };
     return blockedPreview(input, [w], {

@@ -31,6 +31,11 @@ export type WarningCode =
   | "INTENT_SPEND_EXCEEDED"
   | "INTENT_UNEXPECTED_AUTH"
   | "INTENT_UNVERIFIABLE"
+  | "UNLIMITED_APPROVAL"
+  | "APPROVAL_NEW_SPENDER"
+  | "TRANSFER_FROM"
+  | "ADMIN_CHANGE"
+  | "CONTRACT_WASM_UPDATE"
   | "INTERNAL_ERROR";
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
@@ -64,6 +69,11 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   INTENT_SPEND_EXCEEDED: "blocked",
   INTENT_UNEXPECTED_AUTH: "blocked",
   INTENT_UNVERIFIABLE: "blocked",
+  UNLIMITED_APPROVAL: "review",
+  APPROVAL_NEW_SPENDER: "review",
+  TRANSFER_FROM: "review",
+  ADMIN_CHANGE: "blocked",
+  CONTRACT_WASM_UPDATE: "blocked",
   INTERNAL_ERROR: "blocked",
 };
 

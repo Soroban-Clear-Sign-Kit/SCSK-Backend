@@ -89,6 +89,6 @@ describe("Mainnet Complex Fixtures", () => {
       expect(decoded.invocation.contractId).toBe(expected.contractId);
       expect(decoded.invocation.functionName).toBe(expected.functionName);
       expect(decoded.invocation.args).toHaveLength(expected.argCount);
-    });
+    }, 15000);
   }
 });

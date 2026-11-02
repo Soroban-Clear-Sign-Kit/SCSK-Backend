@@ -4,15 +4,16 @@ import { WarningCode } from "./errors.js";
 import { loadSpec, SpecLoaderOptions, SAC_FUNCTIONS } from "./spec.js";
 import { decodeScVal } from "./scval.js";
 import { MAX_AUTH_DEPTH, MAX_AUTH_NODES } from "./limits.js";
+import { unwrap, getSwitchName, getArray } from "./accessors.js";
 
 export interface AuthDecodeOptions extends SpecLoaderOptions {
-  signerAddress?: string;
-  minAuthValidityLedgers?: number;
-  topLevelContractId?: string;
+  signerAddress?: string | undefined;
+  minAuthValidityLedgers?: number | undefined;
+  topLevelContractId?: string | undefined;
 }
 
 export async function decodeAuthEntries(
-  entries: any[], // xdr.SorobanAuthorizationEntry[] or parsed
+  entries: (xdr.SorobanAuthorizationEntry | unknown)[],
   latestLedger: number,
   opts: AuthDecodeOptions,
 ): Promise<{
@@ -22,17 +23,13 @@ export async function decodeAuthEntries(
   const warnings: { code: WarningCode; message: string }[] = [];
   const auth: AuthEntry[] = [];
 
-  for (const entry of entries) {
-    const creds =
-      typeof entry.credentials === "function"
-        ? entry.credentials()
-        : entry.credentials;
+  for (const rawEntry of entries) {
+    const entry = rawEntry as Record<string, unknown>;
+    const creds = unwrap<Record<string, unknown> | string>(entry.credentials);
     let credentials: AuthEntry["credentials"];
 
     const credsSwitch =
-      typeof creds?.switch === "function"
-        ? creds.switch().name
-        : (creds?.type ?? creds);
+      getSwitchName(creds) ?? (typeof creds === "string" ? creds : undefined);
 
     if (
       creds === "source_account" ||
@@ -48,38 +45,31 @@ export async function decodeAuthEntries(
         ("address" in creds || "addressCreds" in creds))
     ) {
       const addrCreds =
-        (typeof creds.address === "function"
-          ? creds.address()
-          : creds.address) ||
-        creds.addressCreds ||
-        creds;
-      const addrObj =
-        typeof addrCreds.address === "function"
-          ? addrCreds.address()
-          : addrCreds.address;
+        unwrap<Record<string, unknown>>(
+          (creds as Record<string, unknown>).address ??
+            (creds as Record<string, unknown>).addressCreds,
+        ) ?? (creds as Record<string, unknown>);
+
+      const addrObj = unwrap(addrCreds.address);
       const address =
         typeof addrObj === "string"
           ? addrObj
-          : Address.fromScAddress(addrObj).toString();
-      const nonceObj =
-        typeof addrCreds.nonce === "function"
-          ? addrCreds.nonce()
-          : addrCreds.nonce;
-      const nonce = nonceObj ? nonceObj.toString() : "0";
-      const signatureExpirationLedger =
-        typeof addrCreds.signatureExpirationLedger === "function"
-          ? addrCreds.signatureExpirationLedger()
-          : (addrCreds.signatureExpirationLedger ??
-            addrCreds.signature_expiration_ledger ??
-            0);
-      const signature =
-        typeof addrCreds.signature === "function"
-          ? addrCreds.signature()
-          : addrCreds.signature;
+          : Address.fromScAddress(addrObj as xdr.ScAddress).toString();
+
+      const nonceObj = unwrap(addrCreds.nonce);
+      const nonce = nonceObj ? String(nonceObj) : "0";
+
+      const signatureExpirationLedger = Number(
+        unwrap(
+          addrCreds.signatureExpirationLedger ??
+            addrCreds.signature_expiration_ledger,
+        ) ?? 0,
+      );
+
+      const signature = unwrap(addrCreds.signature);
+      const signatureSwitch = getSwitchName(signature);
       const signed = signature
-        ? (typeof signature.switch === "function"
-            ? signature.switch().name
-            : signature.type) !== "scvVoid" && signature !== "void"
+        ? signatureSwitch !== "scvVoid" && signature !== "void"
         : false;
 
       credentials = {
@@ -114,7 +104,10 @@ export async function decodeAuthEntries(
 
     let nodeCount = 0;
 
-    async function walkInvocation(inv: any, depth: number): Promise<AuthNode> {
+    async function walkInvocation(
+      rawInv: unknown,
+      depth: number,
+    ): Promise<AuthNode> {
       nodeCount++;
       if (nodeCount > MAX_AUTH_NODES) {
         warnings.push({
@@ -131,11 +124,9 @@ export async function decodeAuthEntries(
         return { kind: "contract-fn", children: [], depth };
       }
 
-      const func =
-        (typeof inv.function === "function" ? inv.function() : inv.function) ||
-        inv.fn;
-      const funcType =
-        typeof func?.switch === "function" ? func.switch().name : func?.type;
+      const inv = rawInv as Record<string, unknown>;
+      const func = unwrap<Record<string, unknown>>(inv.function ?? inv.fn);
+      const funcType = getSwitchName(func);
 
       let kind: AuthNode["kind"] = "contract-fn";
       let contractId: string | undefined;
@@ -145,28 +136,33 @@ export async function decodeAuthEntries(
       let skipChildren = false;
 
       if (
-        funcType === "sorobanAuthorizedFunctionTypeContractFn" ||
-        func?.contract_fn ||
-        func?.contractFn
+        func &&
+        (funcType === "sorobanAuthorizedFunctionTypeContractFn" ||
+          Boolean(func.contract_fn) ||
+          Boolean(func.contractFn))
       ) {
         const contractFn =
-          (typeof func.contractFn === "function"
-            ? func.contractFn()
-            : func.contractFn) || func.contract_fn;
-        const addrObj =
-          (typeof contractFn.contractAddress === "function"
-            ? contractFn.contractAddress()
-            : contractFn.contractAddress) || contractFn.contract_address;
+          unwrap<Record<string, unknown>>(
+            func.contractFn ?? func.contract_fn,
+          ) ?? func;
+
+        const addrObj = unwrap(
+          contractFn.contractAddress ?? contractFn.contract_address,
+        );
         contractId =
           typeof addrObj === "string"
             ? addrObj
-            : Address.fromScAddress(addrObj).toString();
-        const rawFnName =
-          (typeof contractFn.functionName === "function"
-            ? contractFn.functionName()
-            : contractFn.functionName) || contractFn.function_name;
+            : Address.fromScAddress(addrObj as xdr.ScAddress).toString();
+
+        const rawFnName = unwrap<string | { toString: () => string }>(
+          contractFn.functionName ?? contractFn.function_name,
+        );
         functionName =
-          typeof rawFnName === "string" ? rawFnName : rawFnName.toString();
+          typeof rawFnName === "string"
+            ? rawFnName
+            : rawFnName
+              ? rawFnName.toString()
+              : "";
 
         if (opts.topLevelContractId && contractId !== opts.topLevelContractId) {
           warnings.push({
@@ -175,10 +171,7 @@ export async function decodeAuthEntries(
           });
         }
 
-        const scVals =
-          (typeof contractFn.args === "function"
-            ? contractFn.args()
-            : contractFn.args) || [];
+        const scVals = getArray<xdr.ScVal>(contractFn.args);
 
         const specResult = await loadSpec(contractId, opts);
         warnings.push(...specResult.warnings);
@@ -201,7 +194,7 @@ export async function decodeAuthEntries(
         let decodedArgs: DecodedArg[] = [];
         if (specResult.source === "sac-builtin" && functionName) {
           const sacDef = SAC_FUNCTIONS[functionName];
-          decodedArgs = scVals.map((arg: any, i: number) => {
+          decodedArgs = scVals.map((arg: xdr.ScVal | unknown, i: number) => {
             const expected = sacDef?.args[i];
             const res = decodeScVal(arg, null, null);
             warnings.push(...res.warnings);
@@ -214,13 +207,21 @@ export async function decodeAuthEntries(
         } else if (specResult.spec && functionName) {
           const spec = specResult.spec;
           const funcEntry = spec.getFunc(functionName);
-          decodedArgs = scVals.map((arg: any, i: number) => {
+          decodedArgs = scVals.map((arg: xdr.ScVal | unknown, i: number) => {
             const input = funcEntry?.inputs[i];
-            const name = input
-              ? typeof input.name === "string"
-                ? input.name
-                : Buffer.from(input.name as any).toString("utf8")
-              : null;
+            let name: string | null = null;
+            if (input) {
+              if (typeof input.name === "string") {
+                name = input.name;
+              } else if (
+                Buffer.isBuffer(input.name) ||
+                input.name instanceof Uint8Array
+              ) {
+                name = Buffer.from(input.name).toString("utf8");
+              } else if (input.name) {
+                name = String(input.name);
+              }
+            }
             const res = decodeScVal(arg, spec, input?.type || null);
             warnings.push(...res.warnings);
             return {
@@ -230,7 +231,7 @@ export async function decodeAuthEntries(
             };
           });
         } else {
-          decodedArgs = scVals.map((arg: any) => {
+          decodedArgs = scVals.map((arg: xdr.ScVal | unknown) => {
             const res = decodeScVal(arg, null, null);
             warnings.push(...res.warnings);
             return { name: null, typeName: null, value: res.value };
@@ -254,39 +255,26 @@ export async function decodeAuthEntries(
 
       const children: AuthNode[] = [];
       if (!skipChildren) {
-        const subInvs =
-          (typeof inv.subInvocations === "function"
-            ? inv.subInvocations()
-            : inv.subInvocations) ||
-          inv.sub_invocations ||
-          [];
-        for (const sub of subInvs || []) {
+        const subInvs = getArray(inv.subInvocations ?? inv.sub_invocations);
+        for (const sub of subInvs) {
           children.push(await walkInvocation(sub, depth + 1));
         }
       }
 
-      const node: any = {
+      const node: AuthNode = {
         kind,
-        contractId,
-        functionName,
-        args,
-        details,
-        children,
         depth,
+        children,
+        ...(contractId !== undefined ? { contractId } : {}),
+        ...(functionName !== undefined ? { functionName } : {}),
+        ...(args !== undefined ? { args } : {}),
+        ...(details !== undefined ? { details } : {}),
       };
 
-      // Remove undefined fields
-      Object.keys(node).forEach(
-        (key) => node[key] === undefined && delete node[key],
-      );
-
-      return node as AuthNode;
+      return node;
     }
 
-    const rootInvoc =
-      (typeof entry.rootInvocation === "function"
-        ? entry.rootInvocation()
-        : entry.rootInvocation) || entry.root_invocation;
+    const rootInvoc = unwrap(entry.rootInvocation ?? entry.root_invocation);
     const root = await walkInvocation(rootInvoc, 1);
 
     auth.push({ credentials, root });
