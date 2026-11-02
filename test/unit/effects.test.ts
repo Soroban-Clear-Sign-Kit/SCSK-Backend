@@ -304,6 +304,8 @@ describe("extractTokenEffects", () => {
               topics,
               data: xdr.ScVal.scvI128(
                 new xdr.Int128Parts({
+                  hi: xdr.Int64.fromString("0"),
+                  lo: xdr.Uint64.fromString("5"),
                   hi: 0n,
                   lo: 5n,
                 }),

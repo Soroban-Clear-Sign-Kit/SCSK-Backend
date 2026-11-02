@@ -20,6 +20,9 @@ import { computeRisk } from "./risk.js";
 import { sanitizeRecursive } from "./sanitize.js";
 import { generateSummary } from "./summary.js";
 import { LocaleStrings } from "./locales/en.js";
+import { stripUndefined } from "./util.js";
+import { withTimeout } from "./timeout.js";
+import { RPC_TIMEOUT_MS } from "./limits.js";
 
 export interface BuildPreviewInput {
   xdr: string;
@@ -80,6 +83,8 @@ export async function buildPreview(
     }
   };
 
+  const rpcTimeoutMs = input.options?.rpcTimeoutMs ?? RPC_TIMEOUT_MS;
+
   try {
     const server = new rpc.Server(input.rpcUrl, {
       allowHttp: input.rpcUrl.startsWith("http://"),
@@ -87,7 +92,7 @@ export async function buildPreview(
     let rpcMatches = false;
     let rpcNetwork: rpc.Api.GetNetworkResponse;
     try {
-      rpcNetwork = await server.getNetwork();
+      rpcNetwork = await withTimeout(server.getNetwork(), rpcTimeoutMs);
       if (
         rpcNetwork.passphrase &&
         rpcNetwork.passphrase !== input.networkPassphrase
@@ -143,11 +148,11 @@ export async function buildPreview(
     let invocation: Invocation | undefined;
     const op = innerTx.operations[0];
     if (op) {
-      const invOpts: SpecLoaderOptions = {
+      const invOpts = stripUndefined({
         networkPassphrase: input.networkPassphrase,
         rpcUrl: input.rpcUrl,
-        ...(input.specs ? { specs: input.specs } : {}),
-      };
+        specs: input.specs,
+      });
       const invResult = await decodeInvocation(op, invOpts);
       invocation = invResult.invocation;
       addWarning(invResult.warnings);
@@ -163,14 +168,13 @@ export async function buildPreview(
     );
 
     if (hasInvoke) {
-      const simOpts: SimulateOptions = {
+      const simOpts = stripUndefined({
         rpcUrl: input.rpcUrl,
         networkPassphrase: input.networkPassphrase,
-        ...(input.options?.feeWarningMultiplier !== undefined
-          ? { feeWarningMultiplier: input.options.feeWarningMultiplier }
-          : {}),
-        ...(input.specs ? { specs: input.specs } : {}),
-      };
+        feeWarningMultiplier: input.options?.feeWarningMultiplier,
+        timeoutMs: input.options?.rpcTimeoutMs,
+        specs: input.specs,
+      });
 
       simulation = await simulateTransaction(tx, simOpts);
       addWarning(simulation.warnings);
@@ -185,7 +189,7 @@ export async function buildPreview(
         const server = new rpc.Server(input.rpcUrl, {
           allowHttp: input.rpcUrl.startsWith("http://"),
         });
-        const info = await server.getLatestLedger();
+        const info = await withTimeout(server.getLatestLedger(), rpcTimeoutMs);
         latestLedger = info.sequence;
       } catch (e) {
         // fallback
@@ -197,11 +201,15 @@ export async function buildPreview(
       effects = effResult.effects;
       addWarning(effResult.warnings);
 
-      const metaResult = await resolveTokenMetadata(effects, {
-        rpcUrl: input.rpcUrl,
-        networkPassphrase: input.networkPassphrase,
-        sourceAccount: tx.source,
-      });
+      const metaResult = await resolveTokenMetadata(
+        effects,
+        stripUndefined({
+          rpcUrl: input.rpcUrl,
+          networkPassphrase: input.networkPassphrase,
+          sourceAccount: tx.source,
+          timeoutMs: input.options?.rpcTimeoutMs,
+        }),
+      );
       addWarning(metaResult.warnings);
     }
 
@@ -218,20 +226,14 @@ export async function buildPreview(
     if (authXdr.length === 0 && simulation.auth) {
       authXdr = simulation.auth;
     }
-    const authOpts: AuthDecodeOptions = {
+    const authOpts = stripUndefined({
       rpcUrl: input.rpcUrl,
       networkPassphrase: input.networkPassphrase,
-      ...(input.options?.minAuthValidityLedgers !== undefined
-        ? { minAuthValidityLedgers: input.options.minAuthValidityLedgers }
-        : {}),
-      ...(input.signerAddress !== undefined
-        ? { signerAddress: input.signerAddress }
-        : {}),
-      ...(invocation?.contractId !== undefined
-        ? { topLevelContractId: invocation.contractId }
-        : {}),
-      ...(input.specs ? { specs: input.specs } : {}),
-    };
+      minAuthValidityLedgers: input.options?.minAuthValidityLedgers,
+      signerAddress: input.signerAddress,
+      topLevelContractId: invocation?.contractId,
+      specs: input.specs,
+    });
 
     const authResult = await decodeAuthEntries(authXdr, latestLedger, authOpts);
     auth = authResult.auth;

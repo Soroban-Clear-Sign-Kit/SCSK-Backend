@@ -1,6 +1,6 @@
 # Seed Backlog
 
-These items were seeded for the repository and have been completed.
+These items were seeded after the MVP. All five are now implemented; see `docs/PROGRESS.md`.
 
 ## 1. Human-readable labels for common SEP-41 read functions (done)
 

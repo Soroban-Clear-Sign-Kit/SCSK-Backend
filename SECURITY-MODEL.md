@@ -25,7 +25,7 @@ Every decoding step contributes warnings. Each warning code has a fixed severity
 
 - **`ok`:** No warnings. Nothing the kit could not decode or verify.
 - **`review`:** At least one `review` warning and no `blocked` warnings, for example a missing contract spec, an extra contract in the auth tree, or an unusually high fee. The user should read the preview before signing.
-- **`blocked`:** At least one `blocked` warning: invalid XDR, a network mismatch, an invalid signature, a failed or unavailable simulation, an expired or duplicated auth entry, an intent mismatch, or an internal error. Wallets should not offer to sign.
+- **`blocked`:** At least one `blocked` warning: invalid XDR, a network mismatch, a failed or unavailable simulation, an expired or duplicated auth entry, an intent mismatch, or an internal error. Wallets should not offer to sign.
 
 A verified app-provided `Intent` can downgrade only `SPEC_UNAVAILABLE`, `VALUE_TOO_DEEP` and `RESTORE_REQUIRED`. It never clears a `blocked` warning.
 

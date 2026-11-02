@@ -9,16 +9,34 @@ import {
 } from "@stellar/stellar-sdk";
 import { BalanceDelta } from "./types.js";
 import { WarningCode } from "./errors.js";
-import { RPC_TIMEOUT_MS } from "./limits.js";
-import { unwrap, getSwitchName } from "./accessors.js";
+import { RPC_TIMEOUT_MS, MAX_TOKEN_METADATA_CACHE_ENTRIES } from "./limits.js";
+import { withTimeout } from "./timeout.js";
 
 export interface TokenMetadataOptions {
   rpcUrl: string;
   networkPassphrase: string;
   sourceAccount: string;
+  /** Milliseconds to wait for each metadata RPC call. Defaults to RPC_TIMEOUT_MS. */
+  timeoutMs?: number;
 }
 
 const metadataCache = new Map<string, { decimals: number; symbol: string }>();
+
+/** Empties the process-wide token metadata cache. */
+export function clearTokenMetadataCache(): void {
+  metadataCache.clear();
+}
+
+function cacheMetadata(
+  key: string,
+  meta: { decimals: number; symbol: string },
+): void {
+  if (metadataCache.size >= MAX_TOKEN_METADATA_CACHE_ENTRIES) {
+    const oldest = metadataCache.keys().next().value;
+    if (oldest !== undefined) metadataCache.delete(oldest);
+  }
+  metadataCache.set(key, meta);
+}
 
 export async function resolveTokenMetadata(
   effects: BalanceDelta[],
@@ -54,7 +72,7 @@ export async function resolveTokenMetadata(
 
         if (decimals !== null && symbol !== null) {
           meta = { decimals, symbol };
-          metadataCache.set(cacheKey, meta);
+          cacheMetadata(cacheKey, meta);
         } else {
           warnings.push({
             code: "TOKEN_METADATA_UNAVAILABLE",
@@ -125,32 +143,23 @@ async function readContractNumber(
     .setTimeout(0)
     .build();
 
-  let timerId: NodeJS.Timeout;
-  const simulatePromise = server.simulateTransaction(tx);
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(
-      () => reject(new Error("RPC Timeout")),
-      RPC_TIMEOUT_MS,
-    );
-  });
-
-  try {
-    const response = await Promise.race([simulatePromise, timeoutPromise]);
-    if (
-      rpc.Api.isSimulationSuccess(response) &&
-      response.result &&
-      response.result.retval
-    ) {
-      const val = response.result.retval as unknown as Record<string, unknown>;
-      const valType = getSwitchName(val);
-      if (valType === "scvU32") {
-        return unwrap<number>(val.u32) ?? null;
-      }
+  const response = await withTimeout(
+    server.simulateTransaction(tx),
+    opts.timeoutMs ?? RPC_TIMEOUT_MS,
+  );
+  if (
+    rpc.Api.isSimulationSuccess(response) &&
+    response.result &&
+    response.result.retval
+  ) {
+    const val: any = response.result.retval;
+    const valType =
+      typeof val.switch === "function" ? val.switch().name : val.type;
+    if (valType === "scvU32") {
+      return typeof val.u32 === "function" ? val.u32() : val.u32;
     }
-    return null;
-  } finally {
-    clearTimeout(timerId!);
   }
+  return null;
 }
 
 async function readContractString(
@@ -168,44 +177,25 @@ async function readContractString(
     .setTimeout(0)
     .build();
 
-  let timerId: NodeJS.Timeout;
-  const simulatePromise = server.simulateTransaction(tx);
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(
-      () => reject(new Error("RPC Timeout")),
-      RPC_TIMEOUT_MS,
-    );
-  });
-
-  try {
-    const response = await Promise.race([simulatePromise, timeoutPromise]);
-    if (
-      rpc.Api.isSimulationSuccess(response) &&
-      response.result &&
-      response.result.retval
-    ) {
-      const val = response.result.retval as unknown as Record<string, unknown>;
-      const valType = getSwitchName(val);
-      if (valType === "scvString") {
-        const v =
-          typeof val.str === "function"
-            ? (val.str as () => unknown)()
-            : val.str;
-        return typeof v === "string"
-          ? v
-          : (v as { toString: (enc?: string) => string }).toString("utf8");
-      } else if (valType === "scvSymbol") {
-        const v =
-          typeof val.sym === "function"
-            ? (val.sym as () => unknown)()
-            : val.sym;
-        return typeof v === "string"
-          ? v
-          : (v as { toString: () => string }).toString();
-      }
+  const response = await withTimeout(
+    server.simulateTransaction(tx),
+    opts.timeoutMs ?? RPC_TIMEOUT_MS,
+  );
+  if (
+    rpc.Api.isSimulationSuccess(response) &&
+    response.result &&
+    response.result.retval
+  ) {
+    const val: any = response.result.retval;
+    const valType =
+      typeof val.switch === "function" ? val.switch().name : val.type;
+    if (valType === "scvString") {
+      const v = typeof val.str === "function" ? val.str() : val.str;
+      return typeof v === "string" ? v : v.toString("utf8");
+    } else if (valType === "scvSymbol") {
+      const v = typeof val.sym === "function" ? val.sym() : val.sym;
+      return typeof v === "string" ? v : v.toString();
     }
-    return null;
-  } finally {
-    clearTimeout(timerId!);
   }
+  return null;
 }

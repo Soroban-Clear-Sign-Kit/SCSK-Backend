@@ -17,10 +17,9 @@ The primary orchestration function that runs the entire clear-sign pipeline: env
 - `input.options` (object, optional):
   - `minAuthValidityLedgers` (number): Default 12. Warns if auth entries expire sooner than this.
   - `feeWarningMultiplier` (number): Default 10. Warns if envelope fee > multiplier * simulated minResourceFee.
-  - `rpcTimeoutMs` (number): Default 10000. Timeout for RPC simulation calls.
+  - `rpcTimeoutMs` (number): Default 10000. Timeout in milliseconds applied to every RPC call made by the pipeline (network check, simulation, token metadata, latest ledger).
   - `debug` (boolean): Default false. If true, the stack trace of an unexpected internal error is written to `console.error`. The preview itself is unaffected: `raw.xdr` is always included.
   - `localeStrings` (LocaleStrings): Replaces the English summary strings.
-  - `now` ((() => number) | number): Overrides the current timestamp (ms) used when checking `TX_EXPIRED`.
 
 #### Returns:
 
@@ -28,78 +27,21 @@ A `Promise` resolving to a `ClearSignPreview` object.
 
 ---
 
-### `summarizeSimulation(response: unknown): SimulationSummary`
+### `clearTokenMetadataCache(): void`
 
-Converts a Soroban RPC `simulateTransaction` response (parsed SDK object, raw JSON object, or JSON string) into a normalized `SimulationSummary` without performing network I/O.
+Empties the process-wide cache of token `decimals`/`symbol` lookups. The cache is keyed by network passphrase and contract ID and holds at most `MAX_TOKEN_METADATA_CACHE_ENTRIES` (256) entries, evicting the oldest first.
 
-- **Error responses** map to `status: "failed"`, `risk: "blocked"`, and emit a `SIMULATION_FAILED` warning.
-- **Restore preambles** (`restorePreamble` with a non-empty footprint) map to `status: "needs-restore"`, `risk: "review"`, emit a `RESTORE_REQUIRED` (`"restore required"`) warning, and extract the affected footprint entries (`restorePreamble.footprint` and `restorePreamble.entries`).
-- **Malformed inputs** (invalid JSON, `null`, arrays, or empty objects) fail closed to `status: "unavailable"`, `risk: "blocked"`, and emit a `SIMULATION_UNAVAILABLE` warning.
-- **Downstream pipeline outputs**:
-  - `summary.auth` feeds `decodeAuthEntries(summary.auth, opts)`
-  - `summary.events` feeds `decodeEvent(event, opts)`
-  - `summary.stateChanges` (`before` / `after`) feeds `decodeLedgerEntry(entry, opts)`
+### `partitionWarnings(warnings): { blocked, review }`
 
-#### Worked Example:
+Splits a list of warnings (anything with a `severity`) into `blocked` and `review` groups, preserving order. Useful for rendering blocking issues before advisory ones.
 
-```typescript
-import {
-  summarizeSimulation,
-  decodeAuthEntries,
-  decodeEvent,
-  decodeLedgerEntry,
-} from "@clearsign/core";
+### `withTimeout(promise, ms, message?)`
 
-const rpcUrl = "https://soroban-testnet.stellar.org";
-const summary = summarizeSimulation(rpcSimulationResponse);
+Rejects with `Error(message)` (default `"RPC Timeout"`) if `promise` has not settled after `ms` milliseconds, and always clears its timer.
 
-if (summary.risk === "blocked") {
-  console.error("Simulation blocked:", summary.error, summary.warnings);
-} else {
-  if (summary.status === "needs-restore" && summary.restorePreamble) {
-    console.warn(
-      "Archived ledger entries require restoration:",
-      summary.restorePreamble.entries,
-      "Fee:",
-      summary.restorePreamble.minResourceFee,
-    );
-  }
+### `stripUndefined(obj)`
 
-  console.log("Min resource fee:", summary.minResourceFee);
-  console.log("Resource usage:", summary.resources);
-
-  // 1. Decode authorization entries (B1)
-  const { entries: authTree, warnings: authWarnings } = await decodeAuthEntries(
-    summary.auth,
-    {
-      rpcUrl,
-      ...(summary.latestLedger !== undefined
-        ? { currentLedger: summary.latestLedger }
-        : {}),
-    },
-  );
-
-  // 2. Decode emitted contract/system events
-  const decodedEvents = await Promise.all(
-    summary.events.map((evt) => decodeEvent(evt, { rpcUrl })),
-  );
-
-  // 3. Decode ledger state changes where provided by the response
-  const decodedAfterStates = await Promise.all(
-    summary.stateChanges
-      .filter((change) => change.after !== null)
-      .map((change) => decodeLedgerEntry(change.after, { rpcUrl })),
-  );
-
-  console.log({ authTree, authWarnings, decodedEvents, decodedAfterStates });
-}
-```
-
----
-
-### `evaluatePolicy(input: Invocation | PolicyContext, config?: PolicyConfig): PolicyWarning[]`
-
-Evaluates a decoded `Invocation` (or `PolicyContext`) against the six built-in rules (`BUILTIN_RULES`) and any custom `Rule`s in `config.rules`, returning warnings ordered by severity (`blocked` before `review`, then rule evaluation order). See [docs/RULES.md](./RULES.md) for rule details and override semantics.
+Returns a shallow copy of `obj` without `undefined` values, for use with `exactOptionalPropertyTypes`.
 
 ---
 

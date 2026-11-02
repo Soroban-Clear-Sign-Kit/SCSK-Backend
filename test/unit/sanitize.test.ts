@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeString, sanitizeRecursive } from "../../src/sanitize.js";
+import { MAX_DISPLAY_STRING } from "../../src/limits.js";
 
 describe("sanitization", () => {
   it("replaces C0 and C1 control characters with ?", () => {
@@ -44,5 +45,54 @@ describe("sanitization", () => {
     const obj = { xdr: longString };
     const res = sanitizeRecursive(obj);
     expect(res.xdr).toBe(longString);
+  });
+});
+
+describe("sanitizeString flags", () => {
+  it("reports no changes for clean input", () => {
+    expect(sanitizeString("hello")).toEqual({
+      value: "hello",
+      sanitized: false,
+      truncated: false,
+    });
+  });
+
+  it("handles the empty string", () => {
+    expect(sanitizeString("")).toEqual({
+      value: "",
+      sanitized: false,
+      truncated: false,
+    });
+  });
+
+  it("strips zero-width characters and marks the result sanitized", () => {
+    const res = sanitizeString("a\u200Bb\uFEFFc");
+    expect(res.value).toBe("abc");
+    expect(res.sanitized).toBe(true);
+  });
+
+  it("can be both sanitized and truncated", () => {
+    const res = sanitizeString("\u202E" + "x".repeat(MAX_DISPLAY_STRING + 10));
+    expect(res.sanitized).toBe(true);
+    expect(res.truncated).toBe(true);
+    expect(res.value.length).toBe(MAX_DISPLAY_STRING);
+  });
+
+  it("does not truncate a string of exactly the maximum length", () => {
+    const res = sanitizeString("x".repeat(MAX_DISPLAY_STRING));
+    expect(res.truncated).toBe(false);
+  });
+});
+
+describe("sanitizeRecursive passthrough", () => {
+  it("returns primitives other than strings unchanged", () => {
+    expect(sanitizeRecursive(5)).toBe(5);
+    expect(sanitizeRecursive(true)).toBe(true);
+    expect(sanitizeRecursive(null)).toBeNull();
+    expect(sanitizeRecursive(undefined)).toBeUndefined();
+  });
+
+  it("sanitizes strings inside nested arrays", () => {
+    expect(sanitizeRecursive({ a: [["x\u0007y"]] })).toEqual({ a: [["x?y"]] });
   });
 });

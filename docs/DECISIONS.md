@@ -19,3 +19,15 @@ During implementation, the following API mappings were recorded from `@stellar/s
 ## Repository Layout Deviation
 
 - The user requested strict separation of packages into \SCSK-Backend\ and \SCSK-Frontend\ directories instead of a single monorepo at \clearsign/\.
+
+## RPC Timeouts
+
+- Every RPC call made by `buildPreview` goes through `withTimeout`, using `options.rpcTimeoutMs` (default `RPC_TIMEOUT_MS`). A hung RPC therefore degrades to `SIMULATION_UNAVAILABLE` / `network.verified: false` instead of hanging the caller.
+
+## Undecodable Events
+
+- Events that cannot be attributed to a valid 32-byte contract ID are reported as `EVENT_SHAPE_UNKNOWN` (a `review` warning) rather than being silently skipped or logged, so a possible token movement is never hidden from the user.
+
+## Token Metadata Cache
+
+- The cache is keyed by `networkPassphrase:contractId`, bounded to 256 entries with oldest-first eviction, and can be emptied with `clearTokenMetadataCache()` for long-running servers.
