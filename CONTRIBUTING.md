@@ -44,3 +44,29 @@ If you want to work on an issue, please leave a comment on the issue asking to b
 ## Stellar Wave Program
 
 This project is intended to be applied to the Drips Stellar Wave program. If you see issues labeled as part of the Wave program, they are eligible for wave rewards. Please review the Wave guidelines before contributing to those issues.
+
+## Semantic Versioning & Breaking Change Policy
+
+`@clearsign/core` strictly adheres to [Semantic Versioning 2.0.0](https://semver.org/).
+
+### What Counts as a Breaking Change (Major Version Bump)
+
+The output schemas (`ClearSignPreviewSchema` / `TransactionSummarySchema`, `DisplayValueSchema`, `WarningSchema`) and exported functions form a stable public contract. The following constitute breaking changes:
+
+1. **Warning Codes:**
+   - Renaming or removing any existing `WarningCodeEnum` value.
+   - Raising the default severity of a warning code from `review` to `blocked` (as it turns previously accepted transactions into blocked ones for consuming wallets).
+2. **Schema & Property Changes:**
+   - Removing, renaming, or changing the type of any required property on `ClearSignPreview` / `TransactionSummary`, `DisplayValue`, `Warning`, or `Invocation`.
+   - Adding required fields to existing public input interfaces (`BuildPreviewInput`, `PolicyConfig`, etc.).
+   - Modifying the discriminated union keys or existing variant structure of `DisplayValue`.
+3. **Public API Signatures:**
+   - Changing the return type or parameter types of public exports (`buildPreview`, `summarizeSimulation`, `evaluatePolicy`, `resolveContractSpec`, `parseEnvelope`).
+   - Increasing minimum supported Node engine (`engines.node`).
+
+### Non-Breaking Changes (Minor / Patch Version Bump)
+
+- Adding new optional properties to `ClearSignPreview` or options objects.
+- Adding a new `WarningCode` with default severity `review` or `blocked` for a newly detected vulnerability pattern.
+- Adding new `DisplayValue` variants with a fallback representation.
+- Performance improvements, bug fixes, and documentation updates.

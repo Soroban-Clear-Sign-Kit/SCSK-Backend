@@ -232,4 +232,3 @@ export const ClearSignPreviewSchema = z.object({
  * Schema alias for TransactionSummary (the ClearSignPreview output contract).
  */
 export const TransactionSummarySchema = ClearSignPreviewSchema;
-

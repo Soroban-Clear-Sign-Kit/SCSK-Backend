@@ -324,6 +324,22 @@ type DisplayValue =
   | { kind: "raw"; scvalType: string; xdr: string };
 ```
 
+### `TransactionSummary`
+
+An alias for `ClearSignPreview` representing the stable transaction summary contract returned by `buildPreview`.
+
+### Runtime Schemas (Zod)
+
+`@clearsign/core` exports runtime Zod validation schemas for all major output structures:
+
+- `DisplayValueSchema`: Recursive schema validating `DisplayValue` objects.
+- `WarningSchema`: Validates warning objects with `WarningCodeEnum` codes and `review` \| `blocked` severities.
+- `DecodedArgSchema`: Validates decoded function arguments.
+- `InvocationSchema`: Validates decoded contract invocations.
+- `AuthNodeSchema` & `AuthEntrySchema`: Validates authorization credentials and invocation trees.
+- `BalanceDeltaSchema`: Validates parsed token movements.
+- `ClearSignPreviewSchema` / `TransactionSummarySchema`: Comprehensive schema validating the entire preview summary output contract.
+
 ---
 
 ## Warning Code Table
