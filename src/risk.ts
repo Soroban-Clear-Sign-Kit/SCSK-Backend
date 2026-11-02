@@ -1,7 +1,12 @@
-import { WarningCode, WARNING_SEVERITY } from "./errors.js";
+import { WarningCode, WarningSeverity, WARNING_SEVERITY } from "./errors.js";
 
 export function computeRisk(
-  warnings: { code: WarningCode; message: string; path?: string }[],
+  warnings: {
+    code: WarningCode;
+    message: string;
+    path?: string | undefined;
+    severity?: WarningSeverity | undefined;
+  }[],
   intentVerified: boolean = false,
 ): "ok" | "review" | "blocked" {
   let hasReview = false;
@@ -11,7 +16,7 @@ export function computeRisk(
     "RESTORE_REQUIRED",
   ]);
   for (const w of warnings) {
-    const sev = WARNING_SEVERITY[w.code];
+    const sev = w.severity ?? WARNING_SEVERITY[w.code];
     if (sev === "blocked") return "blocked";
     if (sev === "review") {
       if (intentVerified && clearedCodes.has(w.code)) {

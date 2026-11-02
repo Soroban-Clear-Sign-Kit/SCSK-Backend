@@ -12,6 +12,7 @@ export * from "./simulate.js";
 export * from "./effects.js";
 export * from "./tokens.js";
 export * from "./risk.js";
+export * from "./policy.js";
 export * from "./intent.js";
 export * from "./sanitize.js";
 export * from "./summary.js";
