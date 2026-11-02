@@ -1,0 +1,68 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Runtime Schemas & Stable Warning Contract > TransactionSummarySchema fixture output validation & snapshots > validates buildPreview output for expired_auth.json against TransactionSummarySchema and matches snapshot structure 1`] = `
+{
+  "hasInvocation": true,
+  "risk": "blocked",
+  "simulationStatus": "failed",
+  "version": 1,
+  "warningCodes": [
+    "SPEC_UNAVAILABLE",
+    "SIMULATION_FAILED",
+    "AUTH_EXPIRED",
+    "SPEC_UNAVAILABLE",
+  ],
+}
+`;
+
+exports[`Runtime Schemas & Stable Warning Contract > TransactionSummarySchema fixture output validation & snapshots > validates buildPreview output for nested_auth.json against TransactionSummarySchema and matches snapshot structure 1`] = `
+{
+  "hasInvocation": true,
+  "risk": "review",
+  "simulationStatus": "success",
+  "version": 1,
+  "warningCodes": [
+    "SPEC_UNAVAILABLE",
+    "SPEC_UNAVAILABLE",
+  ],
+}
+`;
+
+exports[`Runtime Schemas & Stable Warning Contract > TransactionSummarySchema fixture output validation & snapshots > validates buildPreview output for restore_required.json against TransactionSummarySchema and matches snapshot structure 1`] = `
+{
+  "hasInvocation": true,
+  "risk": "review",
+  "simulationStatus": "needs-restore",
+  "version": 1,
+  "warningCodes": [
+    "SPEC_UNAVAILABLE",
+    "RESTORE_REQUIRED",
+  ],
+}
+`;
+
+exports[`Runtime Schemas & Stable Warning Contract > TransactionSummarySchema fixture output validation & snapshots > validates buildPreview output for sac_transfer.json against TransactionSummarySchema and matches snapshot structure 1`] = `
+{
+  "hasInvocation": true,
+  "risk": "review",
+  "simulationStatus": "success",
+  "version": 1,
+  "warningCodes": [
+    "SPEC_UNAVAILABLE",
+    "SPEC_UNAVAILABLE",
+  ],
+}
+`;
+
+exports[`Runtime Schemas & Stable Warning Contract > TransactionSummarySchema fixture output validation & snapshots > validates buildPreview output for sim_fail_balance.json against TransactionSummarySchema and matches snapshot structure 1`] = `
+{
+  "hasInvocation": true,
+  "risk": "blocked",
+  "simulationStatus": "failed",
+  "version": 1,
+  "warningCodes": [
+    "SPEC_UNAVAILABLE",
+    "SIMULATION_FAILED",
+  ],
+}
+`;
