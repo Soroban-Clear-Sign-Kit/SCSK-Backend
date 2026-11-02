@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Companion reviewed `*.expected.json` files beside every testnet and mainnet fixture in `test/fixtures/` and locking test suite `test/unit/recorded-fixtures.test.ts`.
+- Fixture re-recording script `scripts/record-fixture.js` (`pnpm run record:fixture`) and capture documentation in `docs/FIXTURES.md`.
 - Property-based fuzz testing suite (`test/unit/fuzz.test.ts`) using `fast-check` to verify fail-closed guarantees against hostile input (random byte strings, mutated valid envelopes with bit flips, truncation, repeated chunks, deeply nested `ScVal`s beyond recursion bounds, and oversized strings).
 - Runtime Zod validation schemas (`DisplayValueSchema`, `WarningSchema`, `TransactionSummarySchema`, `ClearSignPreviewSchema`, etc.) exported from package entry point.
 - `WarningCodeEnum` with all 36 warning codes and corresponding documentation in `docs/WARNINGS.md`.

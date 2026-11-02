@@ -30,6 +30,7 @@
     "lint:fix": "eslint src test --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "record:fixture": "node scripts/record-fixture.js",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage",
