@@ -79,5 +79,10 @@
       }
     ],
     "error": "HostError: Error(Auth, InvalidAction)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, topics:[error, Error(Auth, InvalidAction)], data:[\"failed account authentication with error\", GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B, Error(Value, UnexpectedType)]\n   1: [Diagnostic Event] topics:[fn_call, CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, transfer], data:[GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B, GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2, 100]\n"
+  },
+  "captureInfo": {
+    "note": "Soroban invokeHostFunction transaction with an expired signatureExpirationLedger auth entry recorded on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

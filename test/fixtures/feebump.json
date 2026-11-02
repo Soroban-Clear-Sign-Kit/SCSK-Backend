@@ -206,5 +206,10 @@
         }
       }
     ]
+  },
+  "captureInfo": {
+    "note": "Fee-bumped transaction envelope wrapping a Soroban invocation recorded on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

@@ -67,5 +67,10 @@
       }
     ],
     "error": "HostError: Error(Contract, #12)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, topics:[error, Error(Contract, #12)], data:\"spent amount is too large for an i64\"\n   1: [Diagnostic Event] topics:[fn_call, CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, transfer], data:[GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B, GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2, 1000000000000000000000000]\n"
+  },
+  "captureInfo": {
+    "note": "Simulation failure response due to insufficient balance error recorded on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

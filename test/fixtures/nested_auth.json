@@ -122,5 +122,10 @@
       ],
       "retval": "void"
     }
+  },
+  "captureInfo": {
+    "note": "Deeply nested multi-level Soroban authorization invocation tree captured on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

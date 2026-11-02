@@ -145,5 +145,10 @@
       ],
       "retval": "void"
     }
+  },
+  "captureInfo": {
+    "note": "Authorization entries authorizing token transfer with address credentials recorded on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

@@ -206,5 +206,10 @@
         }
       }
     ]
+  },
+  "captureInfo": {
+    "note": "Transaction envelope built for Public network presented against Testnet passphrase.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

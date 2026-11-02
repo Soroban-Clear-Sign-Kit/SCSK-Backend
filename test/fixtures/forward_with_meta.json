@@ -132,5 +132,10 @@
       }
     ],
     "error": "HostError: Error(Value, UnexpectedType)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CB6VPRHDERNQ2XLUWNASQEASPONILNQ36OQPIE7WSZHEBK7VLHVAPD6M, topics:[error, Error(Value, UnexpectedType)], data:\"escalating error to VM trap from failed host function call: map_unpack_to_linear_memory\"\n   1: [Diagnostic Event] topics:[fn_call, CB6VPRHDERNQ2XLUWNASQEASPONILNQ36OQPIE7WSZHEBK7VLHVAPD6M, forward_with_meta], data:[GCFBY2QJS33QF6SD44QKHYKCDRCVKEGWNAUOCBC5CRAT6UFRNHOPK34B, CABCGFWV66KHO5SLOEMOAE6YT2DEWEZL65ZX34DP3Q3556UYA3EKKTYF, GDSIQKUJFBOV4XW6SSBYIPT5QUKVPBY4KHLNL3AS3CJIK7BRHZFUSQK2, 100, {\"memo\": \"hello\", \"tags\": []}, {\"Fast\": Void}]\n"
+  },
+  "captureInfo": {
+    "note": "Contract invocation of forward_with_meta() with failed balance check simulation captured on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

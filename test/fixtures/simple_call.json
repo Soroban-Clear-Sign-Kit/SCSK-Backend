@@ -99,5 +99,10 @@
         "bool": true
       }
     }
+  },
+  "captureInfo": {
+    "note": "Standard hello-world contract function invocation captured on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }

@@ -1,4 +1,9 @@
 {
   "xdr": "AAAAAgAAAACKHGoJlvcC+kPnIKPhQhxFVRDWaCjhBF0UQT9QsWnc9QAAJxAATaEeAAAADgAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAADkiCqJKF1eXt6Ug4Q+fYUVV4ccUdbV7BLYkoV8MT5LSQAAAAAAAAAABfXhAAAAAAAAAAAA",
-  "sim": null
+  "sim": null,
+  "captureInfo": {
+    "note": "Classic Stellar operation (payment) transaction envelope captured from testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
+  }
 }

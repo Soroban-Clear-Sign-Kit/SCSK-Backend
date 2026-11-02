@@ -302,5 +302,10 @@
         }
       }
     ]
+  },
+  "captureInfo": {
+    "note": "Contract invocation of forward() routing contract call captured on testnet.",
+    "network": "Test SDF Network ; September 2015",
+    "source": "https://soroban-testnet.stellar.org"
   }
 }
