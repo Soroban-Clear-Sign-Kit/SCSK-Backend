@@ -39,8 +39,8 @@ export interface ParseEnvelopeOptions {
   now?: (() => number) | number | undefined;
 }
 
-function getSignatureBytes(val: unknown): Buffer {
-  if (!val) return Buffer.alloc(0);
+function getSignatureBytes(val: unknown): Uint8Array {
+  if (!val) return new Uint8Array(0);
   let current: unknown = val;
   if (typeof current === "function") current = (current as () => unknown)();
   if (
@@ -51,11 +51,21 @@ function getSignatureBytes(val: unknown): Buffer {
   ) {
     current = (current as { value: unknown }).value;
   }
-  return Buffer.isBuffer(current)
-    ? current
-    : current instanceof Uint8Array
-      ? Buffer.from(current)
-      : Buffer.from(String(current ?? ""));
+  if (current instanceof Uint8Array) {
+    return current;
+  }
+  if (typeof current === "string") {
+    return Buffer.from(current, "utf8");
+  }
+  return new Uint8Array(0);
+}
+
+function areBytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 function getBaseAccountId(address: string): string {
@@ -87,21 +97,24 @@ function verifySignaturesForAccount(
     return { checked: false, valid: true };
   }
 
-  const hint = Buffer.from(kp.signatureHint());
-  const matching = signatures.filter((s: unknown) => {
-    const sObj = s as unknown as Record<string, unknown>;
-    const sHint = getSignatureBytes(sObj.hint);
-    return sHint.equals(hint);
-  });
+  const hint = kp.signatureHint();
+  const matching: xdr.DecoratedSignature[] = [];
+  for (let i = 0; i < signatures.length; i++) {
+    const s = signatures[i]!;
+    const sHint = getSignatureBytes(s.hint);
+    if (areBytesEqual(sHint, hint)) {
+      matching.push(s);
+    }
+  }
 
   if (matching.length === 0) {
     return { checked: false, valid: true };
   }
 
-  for (const s of matching) {
-    const sObj = s as unknown as Record<string, unknown>;
-    const rawSig = getSignatureBytes(sObj.signature);
-    if (!kp.verify(hash, rawSig)) {
+  for (let i = 0; i < matching.length; i++) {
+    const s = matching[i]!;
+    const rawSig = getSignatureBytes(s.signature);
+    if (!kp.verify(hash, rawSig as Buffer)) {
       return { checked: true, valid: false };
     }
   }

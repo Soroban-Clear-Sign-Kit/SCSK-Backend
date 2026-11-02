@@ -311,7 +311,26 @@ export function decodeScVal(
       case "scvString":
       case "scvSymbol": {
         const isStr = scValType === "scvString";
-        const str = scValToNative(scVal).toString();
+        let str: string;
+        if (
+          isStr &&
+          scVal &&
+          typeof scVal === "object" &&
+          scVal.str &&
+          typeof scVal.str.toString === "function"
+        ) {
+          str = scVal.str.toString("utf8");
+        } else if (
+          !isStr &&
+          scVal &&
+          typeof scVal === "object" &&
+          scVal.sym &&
+          typeof scVal.sym.toString === "function"
+        ) {
+          str = scVal.sym.toString("utf8");
+        } else {
+          str = scValToNative(scVal).toString();
+        }
         let truncated = false;
         let finalStr = str;
         if (str.length > MAX_DISPLAY_STRING) {
