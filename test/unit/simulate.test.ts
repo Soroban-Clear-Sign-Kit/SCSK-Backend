@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { simulateTransaction } from "../../src/simulate";
 import {
+  Transaction,
   TransactionBuilder,
   Networks,
   rpc,
@@ -32,7 +33,11 @@ vi.mock("@stellar/stellar-sdk", async (importOriginal) => {
       Server: class MockServer {
         simulateTransaction(tx: any) {
           if ((tx as any)._throw) {
-            return Promise.reject(new Error("RPC Timeout"));
+            return Promise.reject(
+              (tx as any)._throw === true
+                ? new Error("RPC Timeout")
+                : (tx as any)._throw,
+            );
           }
           if ((tx as any)._timeout) {
             return new Promise((resolve) => setTimeout(resolve, 20000));
@@ -56,7 +61,7 @@ describe("simulateTransaction", () => {
       .build();
     (tx as any)._throw = true;
 
-    const sim = await simulateTransaction(tx, {
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
       rpcUrl: "http://mock",
       networkPassphrase: Networks.TESTNET,
     });
@@ -123,7 +128,7 @@ describe("simulateTransaction", () => {
       .spyOn(rpc.Api, "isSimulationError")
       .mockReturnValue(true);
 
-    const sim = await simulateTransaction(tx, {
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
       rpcUrl: "http://mock",
       networkPassphrase: Networks.TESTNET,
     });
@@ -150,7 +155,7 @@ describe("simulateTransaction", () => {
       .spyOn(rpc.Api, "isSimulationRestore")
       .mockReturnValue(true);
 
-    const sim = await simulateTransaction(tx, {
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
       rpcUrl: "http://mock",
       networkPassphrase: Networks.TESTNET,
     });
@@ -353,7 +358,7 @@ describe("simulateTransaction", () => {
       warnings: [],
     });
 
-    const sim = await simulateTransaction(tx, {
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
       rpcUrl: "http://mock",
       networkPassphrase: Networks.TESTNET,
     });
@@ -385,7 +390,7 @@ describe("simulateTransaction", () => {
       .spyOn(rpc.Api, "isSimulationSuccess")
       .mockReturnValue(false);
 
-    const sim = await simulateTransaction(tx, {
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
       rpcUrl: "http://mock",
       networkPassphrase: Networks.TESTNET,
     });
@@ -446,7 +451,7 @@ describe("simulateTransaction", () => {
       warnings: [],
     });
 
-    const sim = await simulateTransaction(tx, {
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
       rpcUrl: "http://mock",
       networkPassphrase: Networks.TESTNET,
     });
@@ -456,6 +461,96 @@ describe("simulateTransaction", () => {
       type: "i128",
       value: "100",
     });
+
+    isSimulationErrorMock.mockRestore();
+    isSimulationRestoreMock.mockRestore();
+    isSimulationSuccessMock.mockRestore();
+  });
+
+  it("handles simulation error as plain object with message or primitive", async () => {
+    const tx1 = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .setTimeout(10)
+      .build();
+    (tx1 as any)._throw = { message: "Object error message" };
+
+    const sim1 = await simulateTransaction(tx1, {
+      rpcUrl: "http://mock",
+      networkPassphrase: Networks.TESTNET,
+    });
+    expect(sim1.status).toBe("unavailable");
+    expect(sim1.warnings).toContainEqual(
+      expect.objectContaining({ message: "Object error message" }),
+    );
+
+    const tx2 = new TransactionBuilder(account, {
+      fee: "100",
+      networkPassphrase: Networks.TESTNET,
+    })
+      .setTimeout(10)
+      .build();
+    (tx2 as any)._throw = "Plain string failure";
+
+    const sim2 = await simulateTransaction(tx2, {
+      rpcUrl: "http://mock",
+      networkPassphrase: Networks.TESTNET,
+    });
+    expect(sim2.status).toBe("unavailable");
+    expect(sim2.warnings).toContainEqual(
+      expect.objectContaining({ message: "RPC unreachable or timed out" }),
+    );
+  });
+
+  it("decodes retval with functionName having toString method", async () => {
+    const tx = {
+      fee: "100",
+      operations: [
+        {
+          func: {
+            switch: () => ({ name: "hostFunctionTypeInvokeContract" }),
+            invokeContract: () => ({
+              contractAddress: Address.contract(Buffer.alloc(32)).toScAddress(),
+              functionName: { toString: () => "testWithToString" },
+              args: [],
+            }),
+          },
+        },
+      ],
+
+      _mockSim: {
+        minResourceFee: "10",
+        latestLedger: 100,
+        events: [],
+        result: {
+          retval: xdr.ScVal.scvU32(42),
+        },
+      },
+    };
+
+    const isSimulationErrorMock = vi
+      .spyOn(rpc.Api, "isSimulationError")
+      .mockReturnValue(false);
+    const isSimulationRestoreMock = vi
+      .spyOn(rpc.Api, "isSimulationRestore")
+      .mockReturnValue(false);
+    const isSimulationSuccessMock = vi
+      .spyOn(rpc.Api, "isSimulationSuccess")
+      .mockReturnValue(true);
+
+    vi.mocked(spec.loadSpec).mockResolvedValue({
+      spec: { getFunc: () => ({ outputs: ["u32"] }) } as any,
+      source: "wasm",
+      warnings: [],
+    });
+
+    const sim = await simulateTransaction(tx as unknown as Transaction, {
+      rpcUrl: "http://mock",
+      networkPassphrase: Networks.TESTNET,
+    });
+    expect(sim.status).toBe("success");
+    expect(sim.returnValue).toEqual({ kind: "int", type: "u32", value: "42" });
 
     isSimulationErrorMock.mockRestore();
     isSimulationRestoreMock.mockRestore();
