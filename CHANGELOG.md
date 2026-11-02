@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Dual ESM and CommonJS exports map in `package.json` with `.d.ts` and `.d.cts` type declarations compatible with `node10`, `node16`, and modern bundlers.
+- Packaging verification suite `pnpm run check:packaging` running `publint` and `@arethetypeswrong/cli` (`attw --pack`) in CI.
+- Consumer compatibility test suite `test/unit/consumer-packaging.test.ts` verifying that `npm pack` creates a valid tarball and all 31 public functions can be cleanly imported in both ESM and CommonJS consumer projects.
+- Release workflow dry-run step (`npm publish --provenance --access public --dry-run`) on tag pushes in `.github/workflows/publish.yml`.
+- Package installation guide in `README.md` for `npm`, `pnpm`, and `yarn`.
 - Vitest benchmark suite `test/bench/hot-paths.bench.ts` (`pnpm run bench`) profiling `parseEnvelope`, `decodeScVal`, and `decodeLedgerEntry` across small, medium, and large payloads, with report-only execution in CI and baselines recorded in `docs/PERFORMANCE.md`.
 - Security model claim verification script `scripts/check-security-model.js` (`pnpm run check:security-model`) and CI enforcement validating that every claim in `SECURITY-MODEL.md` (`SM-01` through `SM-10`) is backed by unit tests and no unknown claim IDs are cited.
 - Formal security claim catalog with permanent claim IDs (`SM-01` .. `SM-10`) and clickable test links in `SECURITY-MODEL.md`.

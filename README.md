@@ -33,6 +33,31 @@ See [docs/API.md](docs/API.md) for every option and type.
 
 ## Installation
 
+Install `@clearsign/core` along with its peer dependency `@stellar/stellar-sdk`:
+
+```bash
+# Using npm
+npm install @clearsign/core @stellar/stellar-sdk
+
+# Using pnpm
+pnpm add @clearsign/core @stellar/stellar-sdk
+
+# Using yarn
+yarn add @clearsign/core @stellar/stellar-sdk
+```
+
+The package provides dual ESM and CommonJS exports with full TypeScript typings out of the box:
+
+```ts
+// ESM
+import { buildPreview, parseEnvelope, computeRisk } from "@clearsign/core";
+
+// CommonJS
+const { buildPreview, parseEnvelope, computeRisk } = require("@clearsign/core");
+```
+
+## Local Development
+
 ```bash
 pnpm install
 ```

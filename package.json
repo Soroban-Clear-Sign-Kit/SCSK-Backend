@@ -18,9 +18,14 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "scripts": {
@@ -33,16 +38,18 @@
     "record:fixture": "node scripts/record-fixture.js",
     "bench": "vitest bench --run test/bench",
     "check:security-model": "node scripts/check-security-model.js",
+    "check:packaging": "publint && attw --pack",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:security-model && pnpm test",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:security-model && pnpm run check:packaging && pnpm test",
     "prepublishOnly": "pnpm run check && pnpm run build"
   },
   "peerDependencies": {
     "@stellar/stellar-sdk": "17.2.1"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "^10.0.1",
     "@stellar/stellar-sdk": "17.2.1",
     "@types/node": "^22.5.5",
@@ -50,6 +57,7 @@
     "eslint": "^10.12.0",
     "fast-check": "^4.10.2",
     "prettier": "^3.9.9",
+    "publint": "^0.3.25",
     "tsup": "^8.3.0",
     "typescript": "^5.6.2",
     "typescript-eslint": "^8.71.1",

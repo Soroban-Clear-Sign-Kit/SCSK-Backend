@@ -25,6 +25,7 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run typecheck
       - run: pnpm run check:security-model
+      - run: pnpm run check:packaging
       - run: pnpm run build
       - run: pnpm test
       - name: Run benchmarks (report-only)
