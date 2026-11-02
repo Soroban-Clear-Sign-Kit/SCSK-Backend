@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Pluggable policy layer (`evaluatePolicy`, `Rule`, `PolicyConfig`, `BUILTIN_RULES`) in `src/policy.ts` and `docs/RULES.md` with built-in rules for unlimited `i128` approvals (`UNLIMITED_APPROVAL`), approvals to a new spender (`APPROVAL_NEW_SPENDER`), `transfer_from` (`TRANSFER_FROM`), admin changes (`ADMIN_CHANGE`), contract Wasm updates (`CONTRACT_WASM_UPDATE`), and unknown functions with no spec (`SPEC_UNAVAILABLE`).
 - `summarizeSimulation(response)` and `SimulationSummary` (plus `SimulationResourceUsage`, `SimulationRestorePreamble`, and `SimulationStateChange`) to normalize RPC simulation responses, resource usage, restore preambles, authorization entries, events, and state changes, with JSON simulation payload support in `decodeEvent` and `decodeLedgerEntry`.
 - `network.rpcMatches` and `network.signatureBound` verification flags on `ClearSignPreview`, plus `SIGNATURE_INVALID` warning code for mismatched envelope signatures.
 - `options.now` support on `parseEnvelope` and `buildPreview` for deterministic `TX_EXPIRED` checks.
