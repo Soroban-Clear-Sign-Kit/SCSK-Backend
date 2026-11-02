@@ -11,6 +11,26 @@ The Core Engine of the **Soroban Clear-Sign Kit (SCSK)** provides robust, fail-c
 - **State Overrides (`decodeLedgerEntry`)**: Analyzes `LedgerEntry` mutations (such as `contractData`) to provide clear visual diffs of state changes before transaction signing.
 - **Security-First Architecture**: Strictly follows a "fail-closed" security policy where unsupported or malformed payloads produce clear `review` or `blocked` warnings rather than misleading approvals.
 
+## Quick start
+
+```ts
+import { buildPreview } from "@clearsign/core";
+import { Networks } from "@stellar/stellar-sdk";
+
+const preview = await buildPreview({
+  xdr, // base64 transaction or fee-bump envelope
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  networkPassphrase: Networks.TESTNET,
+  signerAddress, // optional: highlights the signer's balance changes
+});
+
+if (preview.risk === "blocked") {
+  // do not offer to sign
+}
+```
+
+See [docs/API.md](docs/API.md) for every option and type.
+
 ## Installation
 
 ```bash

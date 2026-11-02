@@ -18,7 +18,9 @@ The primary orchestration function that runs the entire clear-sign pipeline: env
   - `minAuthValidityLedgers` (number): Default 12. Warns if auth entries expire sooner than this.
   - `feeWarningMultiplier` (number): Default 10. Warns if envelope fee > multiplier * simulated minResourceFee.
   - `rpcTimeoutMs` (number): Default 10000. Timeout for RPC simulation calls.
-  - `debug` (boolean): Default false. If true, includes the original XDR strings in the output structure.
+  - `debug` (boolean): Default false. If true, the stack trace of an unexpected internal error is written to `console.error`. The preview itself is unaffected: `raw.xdr` is always included.
+  - `localeStrings` (LocaleStrings): Replaces the English summary strings.
+  - `now` ((() => number) | number): Overrides the current timestamp (ms) used when checking `TX_EXPIRED`.
 
 #### Returns:
 
