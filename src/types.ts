@@ -119,3 +119,5 @@ export interface ClearSignPreview {
   summary: string[];
   raw: { xdr: string };
 }
+
+export type TransactionSummary = ClearSignPreview;
