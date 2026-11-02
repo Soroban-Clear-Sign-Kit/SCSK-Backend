@@ -11,7 +11,13 @@ import { DisplayValue } from "./types.js";
 import { RPC_TIMEOUT_MS, DEFAULT_FEE_WARNING_MULTIPLIER } from "./limits.js";
 import { loadSpec, SpecLoaderOptions, SAC_FUNCTIONS } from "./spec.js";
 import { decodeScVal } from "./scval.js";
-import { unwrap, getSwitchName, getArray, toContractId } from "./accessors.js";
+import {
+  unwrap,
+  getSwitchName,
+  getArray,
+  toContractId,
+  toBuffer,
+} from "./accessors.js";
 
 export interface SimulateOptions extends SpecLoaderOptions {
   rpcUrl: string;
@@ -91,10 +97,14 @@ function formatFootprintKey(key: unknown): string {
       const cid = cd ? toContractId(cd.contract) : null;
       if (cid) return `contract_data:${cid}`;
     } else if (sw === "contractCode") {
-      const cc = unwrap<Record<string, unknown>>(kObj.contractCode);
-      const hashVal = cc ? unwrap<Buffer>(cc.hash) : null;
-      if (hashVal && Buffer.isBuffer(hashVal)) {
-        return `contract_code:${hashVal.toString("hex")}`;
+      const cc =
+        unwrap<Record<string, unknown>>(kObj.contractCode) ??
+        unwrap<Record<string, unknown>>(kObj._value);
+      const ccAttrs = unwrap<Record<string, unknown>>(cc?._attributes) ?? cc;
+      const rawHash = unwrap<Record<string, unknown>>(ccAttrs?.hash);
+      const hashBuf = toBuffer(rawHash?.value ?? rawHash);
+      if (hashBuf) {
+        return `contract_code:${hashBuf.toString("hex")}`;
       }
     }
     return (kObj as { toXDR: (fmt: string) => string }).toXDR("base64");

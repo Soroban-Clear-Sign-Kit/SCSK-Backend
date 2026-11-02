@@ -53,6 +53,11 @@ const EXPECTED_FIXTURE_RESULTS: Record<string, FixtureExpected> = {
     warnings: ["SPEC_UNAVAILABLE"],
     functionName: "nested_auth",
   },
+  "restore_required.json": {
+    risk: "review",
+    warnings: ["RESTORE_REQUIRED", "SPEC_UNAVAILABLE"],
+    functionName: "simple_call",
+  },
   "sac_transfer.json": {
     risk: "review",
     warnings: ["SPEC_UNAVAILABLE"],
