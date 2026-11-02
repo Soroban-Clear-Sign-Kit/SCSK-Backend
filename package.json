@@ -31,6 +31,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "record:fixture": "node scripts/record-fixture.js",
+    "bench": "vitest bench --run test/bench",
     "check:security-model": "node scripts/check-security-model.js",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",

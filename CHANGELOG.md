@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Vitest benchmark suite `test/bench/hot-paths.bench.ts` (`pnpm run bench`) profiling `parseEnvelope`, `decodeScVal`, and `decodeLedgerEntry` across small, medium, and large payloads, with report-only execution in CI and baselines recorded in `docs/PERFORMANCE.md`.
 - Security model claim verification script `scripts/check-security-model.js` (`pnpm run check:security-model`) and CI enforcement validating that every claim in `SECURITY-MODEL.md` (`SM-01` through `SM-10`) is backed by unit tests and no unknown claim IDs are cited.
 - Formal security claim catalog with permanent claim IDs (`SM-01` .. `SM-10`) and clickable test links in `SECURITY-MODEL.md`.
 - Companion reviewed `*.expected.json` files beside every testnet and mainnet fixture in `test/fixtures/` and locking test suite `test/unit/recorded-fixtures.test.ts`.
