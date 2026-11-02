@@ -1,0 +1,8 @@
+{
+  "type": "preview",
+  "risk": "review",
+  "warnings": ["SPEC_UNAVAILABLE"],
+  "functionName": "forward",
+  "simulationStatus": "success",
+  "operationTypes": ["invokeHostFunction"]
+}

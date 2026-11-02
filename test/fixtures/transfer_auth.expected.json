@@ -1,0 +1,8 @@
+{
+  "type": "preview",
+  "risk": "review",
+  "warnings": ["SPEC_UNAVAILABLE"],
+  "functionName": "transfer_auth",
+  "simulationStatus": "success",
+  "operationTypes": ["invokeHostFunction"]
+}

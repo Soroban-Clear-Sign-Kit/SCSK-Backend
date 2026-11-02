@@ -1,0 +1,8 @@
+{
+  "type": "preview",
+  "risk": "blocked",
+  "warnings": ["NETWORK_MISMATCH"],
+  "functionName": null,
+  "simulationStatus": "skipped",
+  "operationTypes": []
+}

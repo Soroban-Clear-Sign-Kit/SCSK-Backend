@@ -1,0 +1,8 @@
+{
+  "type": "preview",
+  "risk": "review",
+  "warnings": ["SPEC_UNAVAILABLE"],
+  "functionName": "simple_call",
+  "simulationStatus": "success",
+  "operationTypes": ["invokeHostFunction"]
+}

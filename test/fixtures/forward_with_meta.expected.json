@@ -1,0 +1,8 @@
+{
+  "type": "preview",
+  "risk": "blocked",
+  "warnings": ["SIMULATION_FAILED", "SPEC_UNAVAILABLE"],
+  "functionName": "forward_with_meta",
+  "simulationStatus": "failed",
+  "operationTypes": ["invokeHostFunction"]
+}

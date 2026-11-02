@@ -1,0 +1,6 @@
+{
+  "type": "envelope",
+  "success": true,
+  "operationTypes": ["invokeHostFunction"],
+  "warnings": []
+}

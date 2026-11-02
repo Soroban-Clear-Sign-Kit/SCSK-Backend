@@ -1,0 +1,8 @@
+{
+  "type": "preview",
+  "risk": "review",
+  "warnings": ["RESTORE_REQUIRED", "SPEC_UNAVAILABLE"],
+  "functionName": "simple_call",
+  "simulationStatus": "needs-restore",
+  "operationTypes": ["invokeHostFunction"]
+}
