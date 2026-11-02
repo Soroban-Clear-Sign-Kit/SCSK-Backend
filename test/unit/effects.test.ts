@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { extractTokenEffects } from "../../src/effects.js";
-import { xdr } from "@stellar/stellar-sdk";
+import { xdr, StrKey } from "@stellar/stellar-sdk";
 
 describe("extractTokenEffects", () => {
   const fromStr = "GB7D4G6B7D4G6B7D4G6B7D4G6B7D4G6B7D4G6B7D4G6B7D4G6B7D4G6B";
@@ -322,5 +322,326 @@ describe("extractTokenEffects", () => {
     );
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it("extracts effects when contract ID is a StrKey C... string", () => {
+    const cStr = StrKey.encodeContract(contractId);
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 15n }));
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: cStr,
+          body: {
+            v0: { topics, data },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+    expect(res.effects[0]?.tokenContractId).toBe(cStr);
+  });
+
+  it("handles contract ID starting with C but invalid", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: "CINVALID_STRKEY",
+          body: {
+            v0: {
+              topics,
+              data: xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 1n })),
+            },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toEqual([]);
+  });
+
+  it("extracts effects when contract ID is 64-char hex", () => {
+    const hexId = contractId.toString("hex");
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 25n }));
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: hexId,
+          body: {
+            v0: { topics, data },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+    expect(res.effects[0]?.tokenContractId).toBe(
+      StrKey.encodeContract(contractId),
+    );
+  });
+
+  it("extracts effects when contract ID is Uint8Array", () => {
+    const u8 = new Uint8Array(contractId);
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 5n }));
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: u8,
+          body: {
+            v0: { topics, data },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+  });
+
+  it("extracts effects when contract ID is wrapped in { value: Buffer } or { value: Uint8Array }", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 5n }));
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: { value: contractId },
+          body: {
+            v0: { topics, data },
+          },
+        },
+      } as any,
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: { value: new Uint8Array(contractId) },
+          body: {
+            v0: { topics, data },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+  });
+
+  it("extracts effects when contract ID has toString('hex') returning 64-char string", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 5n }));
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId: {
+            toString: (enc?: string) =>
+              enc === "hex" ? contractId.toString("hex") : "",
+          },
+          body: {
+            v0: { topics, data },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+  });
+
+  it("skips non-contract event types and numeric type !== 1", () => {
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: 2, // not 1
+          contractId,
+          body: { v0: { topics: [], data: null } },
+        },
+      } as any,
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "diagnostic",
+          contractId,
+          body: { v0: { topics: [], data: null } },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toEqual([]);
+  });
+
+  it("handles numeric event type === 1 and contract_id alias", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 5n }));
+    const events = [
+      {
+        in_successful_contract_call: true,
+        event: {
+          type: 1,
+          contract_id: contractId,
+          body: {
+            topics,
+            data,
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+  });
+
+  it("skips events with missing body, missing topics, or empty topics", () => {
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: { type: "contract", contractId, body: null },
+      } as any,
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: { v0: { topics: null, data: null } },
+        },
+      } as any,
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: { v0: { topics: [], data: xdr.ScVal.scvVoid() } },
+        },
+      } as any,
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: {
+            v0: {
+              topics: [xdr.ScVal.scvU32(1)], // topic0 not symbol
+              data: xdr.ScVal.scvVoid(),
+            },
+          },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toEqual([]);
+  });
+
+  it("handles extractAddress returning null when Address.fromScAddress throws", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      {
+        switch: () => ({ name: "scvAddress" }),
+        address: () => ({ invalid: true }), // throws in Address.fromScAddress
+      },
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: 0n, lo: 10n }));
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: { v0: { topics, data } },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toEqual([]);
+  });
+
+  it("handles scvI128 with missing parts in extractAmount", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = {
+      switch: () => ({ name: "scvI128" }),
+      i128: null, // missing parts
+    };
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: { v0: { topics, data } },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toEqual([]);
+    expect(res.warnings).toContainEqual(
+      expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
+    );
   });
 });
