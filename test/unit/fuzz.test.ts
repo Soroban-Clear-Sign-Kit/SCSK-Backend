@@ -34,7 +34,7 @@ for (const file of fixtureFiles) {
 const FUZZ_SEED = 0x5c5ca9;
 
 describe("Property-based fuzz testing with fast-check (Fail-closed verification)", () => {
-  it("random bytes/strings: parseEnvelope never throws and never returns an approved status for invalid input", () => {
+  it("[SM-01] random bytes/strings: parseEnvelope never throws and never returns an approved status for invalid input", () => {
     fc.assert(
       fc.property(
         fc.oneof(

@@ -410,7 +410,7 @@ describe("Policy Layer & Built-in Rules", () => {
       expect(computeRisk(suppressed)).toBe("ok");
     });
 
-    it("fails closed when invocation is missing/malformed or a custom rule throws", () => {
+    it("[SM-07] fails closed when invocation is missing/malformed or a custom rule throws", () => {
       const badCtxWarnings = evaluatePolicy(null);
       expect(badCtxWarnings).toHaveLength(1);
       expect(badCtxWarnings[0]).toMatchObject({

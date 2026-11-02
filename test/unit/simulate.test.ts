@@ -125,7 +125,7 @@ describe("simulateTransaction", () => {
     }
   });
 
-  it("returns failed on simulation error", async () => {
+  it("[SM-06] returns failed on simulation error", async () => {
     const tx = new TransactionBuilder(account, {
       fee: "100",
       networkPassphrase: Networks.TESTNET,

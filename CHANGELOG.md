@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Security model claim verification script `scripts/check-security-model.js` (`pnpm run check:security-model`) and CI enforcement validating that every claim in `SECURITY-MODEL.md` (`SM-01` through `SM-10`) is backed by unit tests and no unknown claim IDs are cited.
+- Formal security claim catalog with permanent claim IDs (`SM-01` .. `SM-10`) and clickable test links in `SECURITY-MODEL.md`.
 - Companion reviewed `*.expected.json` files beside every testnet and mainnet fixture in `test/fixtures/` and locking test suite `test/unit/recorded-fixtures.test.ts`.
 - Fixture re-recording script `scripts/record-fixture.js` (`pnpm run record:fixture`) and capture documentation in `docs/FIXTURES.md`.
 - Property-based fuzz testing suite (`test/unit/fuzz.test.ts`) using `fast-check` to verify fail-closed guarantees against hostile input (random byte strings, mutated valid envelopes with bit flips, truncation, repeated chunks, deeply nested `ScVal`s beyond recursion bounds, and oversized strings).

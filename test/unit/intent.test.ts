@@ -26,7 +26,7 @@ describe("intent verification", () => {
     specSource: "wasm",
   };
 
-  it("passes on matching intent", () => {
+  it("[SM-03] passes on matching intent and raises INTENT_MISMATCH on discrepancies", () => {
     const intent: Intent = {
       contractId: "C123",
       functionName: "transfer",

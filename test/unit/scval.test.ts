@@ -19,7 +19,7 @@ describe("decodeScVal", () => {
     expect(value.kind).toBe("vec");
   });
 
-  it("decodes bool, u64, i32, and timepoint", () => {
+  it("[SM-08] decodes bool, u64, i32, and timepoint", () => {
     const boolVal = xdr.ScVal.scvBool(true);
     expect(decodeScVal(boolVal).value).toEqual({ kind: "bool", value: true });
 

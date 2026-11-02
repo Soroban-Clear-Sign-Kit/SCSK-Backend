@@ -553,7 +553,7 @@ describe("resolveContractSpec", () => {
     }
   });
 
-  it("rejects oversized Wasm binaries exceeding maxWasmBytes (WASM_TOO_LARGE)", async () => {
+  it("[SM-04] rejects oversized Wasm binaries exceeding maxWasmBytes (WASM_TOO_LARGE)", async () => {
     const oversizedWasm = Buffer.alloc(2048, 0xaa);
     const mockGetContractInstance = vi.fn().mockResolvedValue({
       executable: { wasmHash: "11".repeat(32) },

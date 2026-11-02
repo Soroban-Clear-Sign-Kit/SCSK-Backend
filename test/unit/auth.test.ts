@@ -389,7 +389,7 @@ describe("decodeAuthEntries", () => {
     expect((res.auth[0]?.root as any)?.args?.[0]?.name).toBe("from");
   });
 
-  it("warns on node count limit exceeded", async () => {
+  it("[SM-10] warns on node count limit exceeded and enforces auth depth recursion limit", async () => {
     const buildWideInv = (breadth: number): any => {
       const subInvocations: any[] = [];
       for (let i = 0; i < breadth; i++) {

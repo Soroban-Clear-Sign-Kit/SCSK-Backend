@@ -66,7 +66,7 @@ describe("buildPreview", () => {
     ]);
   });
 
-  it("returns blocked on network mismatch", async () => {
+  it("[SM-02] returns blocked on network mismatch", async () => {
     vi.mocked(envelope.parseEnvelope).mockReturnValue({
       success: true,
       warnings: [{ code: "NETWORK_MISMATCH", message: "mismatch" }],

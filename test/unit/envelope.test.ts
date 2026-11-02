@@ -33,26 +33,26 @@ const source = Keypair.random();
 const account = new Account(source.publicKey(), "1");
 
 describe("parseEnvelope", () => {
-  it("rejects empty input", () => {
+  it("[SM-01] rejects empty input", () => {
     const res = parseEnvelope("   ");
     expect(res.success).toBe(false);
     if (!res.success) expect(res.error.code).toBe("ENVELOPE_MALFORMED");
   });
 
-  it("rejects oversized input", () => {
+  it("[SM-01] rejects oversized input", () => {
     const large = "A".repeat(200001) + "=";
     const res = parseEnvelope(large);
     expect(res.success).toBe(false);
     if (!res.success) expect(res.error.code).toBe("ENVELOPE_TOO_LARGE");
   });
 
-  it("rejects bad base64", () => {
+  it("[SM-01] rejects bad base64", () => {
     const res = parseEnvelope("not!base64?");
     expect(res.success).toBe(false);
     if (!res.success) expect(res.error.code).toBe("ENVELOPE_MALFORMED");
   });
 
-  it("rejects truncated XDR", () => {
+  it("[SM-01] rejects truncated XDR", () => {
     const res = parseEnvelope("AAAAAA==");
     expect(res.success).toBe(false);
     if (!res.success) expect(res.error.code).toBe("ENVELOPE_MALFORMED");
@@ -413,7 +413,7 @@ describe("parseEnvelope", () => {
     }
   });
 
-  it("gives SIGNATURE_INVALID when signed on Testnet and parsed with Public passphrase", () => {
+  it("[SM-02] gives SIGNATURE_INVALID when signed on Testnet and parsed with Public passphrase", () => {
     const tx = new TransactionBuilder(account, {
       fee: "100",
       networkPassphrase: Networks.TESTNET,
@@ -464,7 +464,7 @@ describe("parseEnvelope", () => {
     }
   });
 
-  it("verifies FeeBump transaction signatures correctly", () => {
+  it("[SM-09] verifies FeeBump transaction signatures correctly and unrolls inner tx", () => {
     const inner = new TransactionBuilder(account, {
       fee: "100",
       networkPassphrase: Networks.TESTNET,

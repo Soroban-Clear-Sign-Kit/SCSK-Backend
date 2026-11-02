@@ -14,7 +14,7 @@ describe("risk computation", () => {
     expect(computeRisk([])).toBe("ok");
   });
 
-  it("returns blocked if any warning is blocked", () => {
+  it("[SM-07] returns blocked if any warning is blocked", () => {
     expect(
       computeRisk(
         [
@@ -26,7 +26,7 @@ describe("risk computation", () => {
     ).toBe("blocked");
   });
 
-  it("clears SPEC_UNAVAILABLE, VALUE_TOO_DEEP, and RESTORE_REQUIRED if intent is verified", () => {
+  it("[SM-03] clears SPEC_UNAVAILABLE, VALUE_TOO_DEEP, and RESTORE_REQUIRED if intent is verified and never clears blocked", () => {
     expect(
       computeRisk(
         [

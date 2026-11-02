@@ -18,7 +18,7 @@ describe("decodeInvocation", () => {
     vi.clearAllMocks();
   });
 
-  it("decodes classic operations with warnings", async () => {
+  it("[SM-08] decodes classic operations with warnings", async () => {
     const op = { type: "payment", func: null };
     const res = await decodeInvocation(op, {
       rpcUrl: "",
@@ -112,7 +112,7 @@ describe("decodeInvocation", () => {
     expect(res.invocation.args[0]?.name).toBeNull();
   });
 
-  it("decodes spec with arg count mismatch and type mismatch", async () => {
+  it("[SM-05] decodes spec with arg count mismatch and type mismatch", async () => {
     const keypair = Keypair.random();
     const op = {
       body: () => ({
