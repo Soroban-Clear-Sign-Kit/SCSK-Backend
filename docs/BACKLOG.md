@@ -26,3 +26,8 @@ These items were seeded for the repository and have been completed.
 
 - **Acceptance Criteria**: Provide at least 5 new recorded fixtures of complex mainnet transactions (e.g., DeFi swaps, AMM liquidity provision) and unit tests asserting their successful decode and simulation using `buildPreview()`.
 - **Files to Touch**: `packages/core/test/fixtures/*`, `packages/core/test/integration.test.ts`
+
+## 6. Property-based fuzz testing with fast-check (done)
+
+- **Acceptance Criteria**: Test fail-closed guarantees on hostile input (random bytes/strings, mutated valid envelopes with bit flips, truncation, repeated fields, deeply nested ScVal, and oversize strings). Assert never throws uncaught exceptions, never approves undecodable input, enforces recursion bounds, and runs in CI in under 60 seconds with seeded reproducibility.
+- **Files to Touch**: `test/unit/fuzz.test.ts`

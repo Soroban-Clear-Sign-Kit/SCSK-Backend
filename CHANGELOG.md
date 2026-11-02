@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Property-based fuzz testing suite (`test/unit/fuzz.test.ts`) using `fast-check` to verify fail-closed guarantees against hostile input (random byte strings, mutated valid envelopes with bit flips, truncation, repeated chunks, deeply nested `ScVal`s beyond recursion bounds, and oversized strings).
 - Runtime Zod validation schemas (`DisplayValueSchema`, `WarningSchema`, `TransactionSummarySchema`, `ClearSignPreviewSchema`, etc.) exported from package entry point.
 - `WarningCodeEnum` with all 36 warning codes and corresponding documentation in `docs/WARNINGS.md`.
 - Semantic versioning breaking change policy in `CONTRIBUTING.md`.
