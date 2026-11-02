@@ -103,6 +103,27 @@ Evaluates a decoded `Invocation` (or `PolicyContext`) against the six built-in r
 
 ---
 
+### `resolveContractSpec(contractId: string, options: ResolveContractSpecOptions): Promise<ResolveContractSpecResult>`
+
+Resolves a contract's `contract.Spec` over Soroban RPC so callers do not need to supply pre-bundled Wasm bytes:
+
+- Enforces `https://` RPC URLs by default (with an optional `allowlist` / `allowedRpcUrls`).
+- Reads the contract instance (`scvLedgerKeyContractInstance`) and contract code (`contractCode`) ledger entries over RPC with a configurable request timeout (`timeoutMs`, default `10000` ms).
+- Short-circuits Stellar Asset Contracts (`source: "sac-builtin"`, `spec: null`) without fetching Wasm code.
+- Enforces a Wasm binary size cap (`maxWasmBytes`, default `MAX_WASM_BYTES = 262144` bytes) before parsing.
+- Extracts the `contractspecv0` WebAssembly custom section, decodes its `xdr.ScSpecEntry` stream, and builds `contract.Spec`.
+- Caches resolved specs in an in-memory TTL cache (`ttlMs`, default `300000` ms) with an injectable clock (`now?: () => number`).
+- Returns a typed `ResolveContractSpecResult` (`{ ok: true, ... } | { ok: false, error: { reason, code, message }, ... }`) and **never throws on remote data**.
+
+> **How Far RPC Data Should Be Trusted:**
+> Contract specs and simulation results fetched from an untrusted or compromised RPC node are **unauthenticated presentation hints**, whereas the transaction envelope XDR signed by the user is the cryptographic ground truth. A malicious RPC could serve a fabricated `contractspecv0` section with misleading parameter labels (e.g. swapping `"recipient"` and `"memo"`), omit diagnostic events, or return stale ledger entries. Therefore:
+>
+> 1. `resolveContractSpec` enforces `https://` and an optional origin `allowlist`, bounds Wasm memory (`maxWasmBytes`) and latency (`timeoutMs`), and validates every `ScSpecEntry` XDR structure.
+> 2. `decodeInvocation` cross-checks actual runtime XDR `ScVal` types against the spec (`ARG_COUNT_MISMATCH`, `ARG_TYPE_MISMATCH`) and always preserves the underlying `ScVal` values and raw transaction XDR.
+> 3. High-assurance deployments should pin trusted RPC origins via `allowlist` or inject audited Wasm specs via `specs` alongside `Intent` verification.
+
+---
+
 ## Types
 
 ### `ClearSignPreview`

@@ -13,8 +13,10 @@ The Soroban Clear-Sign Kit (SCSK) is designed with a strict, fail-closed securit
 3. **Cryptographic Verification of Intents**
    The kit does not just display information; it acts as an "Intent Verifier". For decentralized applications, the backend can compare the decoded `invocation` and `args` against expected intents (e.g., verifying that a `transfer` goes to the correct address for the exact amount).
 
-4. **Zero-Trust Contract Specs**
-   While contract specifications provide human-readable argument names and types, the kit does not trust them to dictate control flow. If a contract claims an argument is an integer but the XDR contains a symbol, the kit flags a severe mismatch.
+4. **Zero-Trust Contract Specs & RPC Trust Boundary**
+   While contract specifications and RPC responses provide human-readable argument names, types, and simulated state, the kit treats RPC-sourced data as **unauthenticated metadata** and never trusts it to override the signed XDR payload:
+   - `resolveContractSpec` enforces `https://` endpoints (with an optional RPC `allowlist`), caps Wasm payload sizes (`MAX_WASM_BYTES`), enforces request timeouts (`RPC_TIMEOUT_MS`), and parses the `contractspecv0` custom section without throwing on malformed remote bytes.
+   - An untrusted RPC node can rename parameter labels in a served spec or withhold simulation events, but it **cannot** alter the actual `ScVal` values, target contract ID, function symbol, or authorization entries embedded in the envelope XDR. If a remote spec claims an argument is an integer when the XDR contains a symbol, or if argument counts differ, the kit flags `ARG_TYPE_MISMATCH` / `ARG_COUNT_MISMATCH` (`blocked`). High-value flows should pair trusted RPC allowlists with `specs` injection and `Intent` verification.
 
 5. **Simulated State Constraints**
    By wrapping `simulateTransaction` from the Soroban RPC, the kit inspects the real execution path of a transaction without submitting it. It strictly filters out events that do not stem from a successful contract call (`inSuccessfulContractCall: true`).
