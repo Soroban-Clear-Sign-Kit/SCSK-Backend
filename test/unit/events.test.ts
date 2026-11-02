@@ -164,4 +164,34 @@ describe("decodeEvent", () => {
     // And since it didn't match, and the first topic is not a symbol, it has no eventName!
     expect(res.eventName).toBeNull();
   });
+
+  it("decodes parsed JSON fixture event and diagnostic event wrappers", async () => {
+    (loadSpec as any).mockResolvedValue({
+      spec: null,
+      source: "sac-builtin",
+      warnings: [],
+    });
+
+    const fixtureDiagEvent = {
+      in_successful_contract_call: true,
+      event: {
+        ext: "v0",
+        contract_id: contractId,
+        type: "contract",
+        body: {
+          v0: {
+            topics: [{ symbol: "mint" }, { address: contractId }],
+            data: { i128: "100" },
+          },
+        },
+      },
+    };
+
+    const res = await decodeEvent(fixtureDiagEvent, { rpcUrl: "" });
+    expect(res.contractId).toBe(contractId);
+    expect(res.type).toBe("contract");
+    expect(res.eventName).toBe("mint");
+    expect(res.topics).toHaveLength(2);
+    expect(res.data).toEqual({ kind: "int", type: "i128", value: "100" });
+  });
 });
