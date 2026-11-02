@@ -55,7 +55,12 @@ describe("Mainnet Complex Fixtures", () => {
   const fixturesDir = path.join(__dirname, "../fixtures");
   const fixtures = fs
     .readdirSync(fixturesDir)
-    .filter((f) => f.startsWith("mainnet_complex_") && f.endsWith(".json"));
+    .filter(
+      (f) =>
+        f.startsWith("mainnet_complex_") &&
+        f.endsWith(".json") &&
+        !f.endsWith(".expected.json"),
+    );
 
   for (const fixtureFile of fixtures) {
     it(`parses and decodes ${fixtureFile}`, async () => {
