@@ -546,4 +546,81 @@ describe("decodeAuthEntries", () => {
     );
     expect(res.auth[0]?.root?.children).toEqual([]); // children should be skipped!
   });
+
+  it("decodes create-contract-v2 auth node", async () => {
+    const res = await decodeAuthEntries(
+      [
+        {
+          credentials: { type: "sorobanCredentialsSourceAccount" },
+          rootInvocation: {
+            function: {
+              type: "sorobanAuthorizedFunctionTypeCreateContractV2HostFn",
+            },
+            subInvocations: [],
+          },
+        },
+      ],
+      50,
+      { rpcUrl: "", networkPassphrase: "" },
+    );
+    expect(res.auth[0]?.root?.kind).toBe("create-contract-v2");
+    expect(res.warnings).toContainEqual(
+      expect.objectContaining({ code: "AUTH_CREATES_CONTRACT" }),
+    );
+  });
+
+  it("decodes input names when Buffer, Uint8Array or object with toString", async () => {
+    const mockSpec = {
+      getFunc: () => ({
+        inputs: [
+          { name: Buffer.from("argBuf"), type: { type: "scSpecTypeU32" } },
+          {
+            name: new Uint8Array([97, 114, 103, 85, 105, 110, 116]),
+            type: { type: "scSpecTypeU32" },
+          },
+          {
+            name: { toString: () => "argObj" },
+            type: { type: "scSpecTypeU32" },
+          },
+        ],
+      }),
+    };
+    vi.mocked(spec.loadSpec).mockResolvedValue({
+      source: "wasm",
+      spec: mockSpec as any,
+      warnings: [],
+    });
+    vi.mocked(scval.decodeScVal).mockReturnValue({
+      value: { kind: "int", type: "u32", value: "1" } as any,
+      warnings: [],
+    });
+
+    const res = await decodeAuthEntries(
+      [
+        {
+          credentials: { type: "sorobanCredentialsSourceAccount" },
+          rootInvocation: {
+            function: {
+              type: "sorobanAuthorizedFunctionTypeContractFn",
+              contractFn: {
+                contractAddress: Address.contract(
+                  Buffer.alloc(32, 1),
+                ).toScAddress(),
+                functionName: { toString: () => "fnWithToString" },
+                args: [1, 2, 3],
+              },
+            },
+            subInvocations: [],
+          },
+        },
+      ],
+      50,
+      { rpcUrl: "", networkPassphrase: "" },
+    );
+
+    expect(res.auth[0]?.root?.functionName).toBe("fnWithToString");
+    expect(res.auth[0]?.root?.args?.[0]?.name).toBe("argBuf");
+    expect(res.auth[0]?.root?.args?.[1]?.name).toBe("argUint");
+    expect(res.auth[0]?.root?.args?.[2]?.name).toBe("argObj");
+  });
 });
