@@ -232,7 +232,11 @@ export async function decodeInvocation(
     if (funcSwitch === "hostFunctionTypeCreateContract") {
       const funcRecord = (func ?? {}) as Record<string, unknown>;
       const createArgs =
-        unwrap<Record<string, unknown>>(funcRecord.value) ?? funcRecord;
+        unwrap<Record<string, unknown>>(
+          funcRecord.createContract ??
+            funcRecord.value ??
+            (funcRecord as { _attributes?: unknown })._attributes,
+        ) ?? funcRecord;
 
       const pre = unwrap<Record<string, unknown>>(
         createArgs.contractIdPreimage,
