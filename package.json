@@ -31,10 +31,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "record:fixture": "node scripts/record-fixture.js",
+    "check:security-model": "node scripts/check-security-model.js",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:security-model && pnpm test",
     "prepublishOnly": "pnpm run check && pnpm run build"
   },
   "peerDependencies": {
