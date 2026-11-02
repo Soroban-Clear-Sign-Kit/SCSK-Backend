@@ -28,6 +28,75 @@ A `Promise` resolving to a `ClearSignPreview` object.
 
 ---
 
+### `summarizeSimulation(response: unknown): SimulationSummary`
+
+Converts a Soroban RPC `simulateTransaction` response (parsed SDK object, raw JSON object, or JSON string) into a normalized `SimulationSummary` without performing network I/O.
+
+- **Error responses** map to `status: "failed"`, `risk: "blocked"`, and emit a `SIMULATION_FAILED` warning.
+- **Restore preambles** (`restorePreamble` with a non-empty footprint) map to `status: "needs-restore"`, `risk: "review"`, emit a `RESTORE_REQUIRED` (`"restore required"`) warning, and extract the affected footprint entries (`restorePreamble.footprint` and `restorePreamble.entries`).
+- **Malformed inputs** (invalid JSON, `null`, arrays, or empty objects) fail closed to `status: "unavailable"`, `risk: "blocked"`, and emit a `SIMULATION_UNAVAILABLE` warning.
+- **Downstream pipeline outputs**:
+  - `summary.auth` feeds `decodeAuthEntries(summary.auth, opts)`
+  - `summary.events` feeds `decodeEvent(event, opts)`
+  - `summary.stateChanges` (`before` / `after`) feeds `decodeLedgerEntry(entry, opts)`
+
+#### Worked Example:
+
+```typescript
+import {
+  summarizeSimulation,
+  decodeAuthEntries,
+  decodeEvent,
+  decodeLedgerEntry,
+} from "@clearsign/core";
+
+const rpcUrl = "https://soroban-testnet.stellar.org";
+const summary = summarizeSimulation(rpcSimulationResponse);
+
+if (summary.risk === "blocked") {
+  console.error("Simulation blocked:", summary.error, summary.warnings);
+} else {
+  if (summary.status === "needs-restore" && summary.restorePreamble) {
+    console.warn(
+      "Archived ledger entries require restoration:",
+      summary.restorePreamble.entries,
+      "Fee:",
+      summary.restorePreamble.minResourceFee,
+    );
+  }
+
+  console.log("Min resource fee:", summary.minResourceFee);
+  console.log("Resource usage:", summary.resources);
+
+  // 1. Decode authorization entries (B1)
+  const { entries: authTree, warnings: authWarnings } = await decodeAuthEntries(
+    summary.auth,
+    {
+      rpcUrl,
+      ...(summary.latestLedger !== undefined
+        ? { currentLedger: summary.latestLedger }
+        : {}),
+    },
+  );
+
+  // 2. Decode emitted contract/system events
+  const decodedEvents = await Promise.all(
+    summary.events.map((evt) => decodeEvent(evt, { rpcUrl })),
+  );
+
+  // 3. Decode ledger state changes where provided by the response
+  const decodedAfterStates = await Promise.all(
+    summary.stateChanges
+      .filter((change) => change.after !== null)
+      .map((change) => decodeLedgerEntry(change.after, { rpcUrl })),
+  );
+
+  console.log({ authTree, authWarnings, decodedEvents, decodedAfterStates });
+}
+```
+
+---
+
 ## Types
 
 ### `ClearSignPreview`
@@ -134,6 +203,59 @@ interface BalanceDelta {
   symbol?: string;
   decimals?: number;
   formatted?: string;
+}
+```
+
+### `SimulationSummary`
+
+```typescript
+interface SimulationResourceUsage {
+  instructions: number;
+  readBytes: number;
+  writeBytes: number;
+  readEntries: number;
+  writeEntries: number;
+  resourceFee?: string;
+  footprint: {
+    readOnly: string[];
+    readWrite: string[];
+  };
+}
+
+interface SimulationRestorePreamble {
+  minResourceFee: string;
+  footprint: {
+    readOnly: string[];
+    readWrite: string[];
+  };
+  entries: string[];
+}
+
+interface SimulationStateChange {
+  type: "created" | "updated" | "deleted" | "unknown";
+  key: unknown;
+  before: xdr.LedgerEntry | unknown | null;
+  after: xdr.LedgerEntry | unknown | null;
+}
+
+interface SimulationSummary {
+  status: "success" | "failed" | "needs-restore" | "unavailable";
+  risk: "ok" | "review" | "blocked";
+  latestLedger?: number;
+  minResourceFee?: string;
+  error?: string;
+  returnValue?: xdr.ScVal | unknown;
+  resources?: SimulationResourceUsage;
+  restorePreamble?: SimulationRestorePreamble;
+  auth: (xdr.SorobanAuthorizationEntry | unknown)[];
+  events: (xdr.ContractEvent | unknown)[];
+  diagnosticEvents: (xdr.DiagnosticEvent | unknown)[];
+  stateChanges: SimulationStateChange[];
+  warnings: {
+    code: WarningCode;
+    severity: "review" | "blocked";
+    message: string;
+  }[];
 }
 ```
 

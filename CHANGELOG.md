@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `summarizeSimulation(response)` and `SimulationSummary` (plus `SimulationResourceUsage`, `SimulationRestorePreamble`, and `SimulationStateChange`) to normalize RPC simulation responses, resource usage, restore preambles, authorization entries, events, and state changes, with JSON simulation payload support in `decodeEvent` and `decodeLedgerEntry`.
 - `network.rpcMatches` and `network.signatureBound` verification flags on `ClearSignPreview`, plus `SIGNATURE_INVALID` warning code for mismatched envelope signatures.
 - `options.now` support on `parseEnvelope` and `buildPreview` for deterministic `TX_EXPIRED` checks.
 - Typed XDR accessor module (`src/accessors.ts`) for safe navigation of `js-xdr` and parsed simulation payloads.
