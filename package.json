@@ -44,18 +44,18 @@
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:security-model && pnpm run check:packaging && pnpm test",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:security-model && pnpm run check:packaging && pnpm run test:coverage",
     "prepublishOnly": "pnpm run check && pnpm run build"
   },
   "peerDependencies": {
-    "@stellar/stellar-sdk": "17.2.1"
+    "@stellar/stellar-sdk": ">=17.1.0 <=17.4.0"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "^10.0.1",
     "@stellar/stellar-sdk": "17.2.1",
     "@types/node": "^22.5.5",
-    "@vitest/coverage-v8": "^2.1.1",
+    "@vitest/coverage-v8": "2.1.9",
     "eslint": "^10.12.0",
     "fast-check": "^4.10.2",
     "prettier": "^3.9.9",
@@ -70,7 +70,7 @@
     "dist"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "dependencies": {
     "zod": "^4.6.7"

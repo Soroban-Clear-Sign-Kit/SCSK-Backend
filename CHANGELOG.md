@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Node 20 and Node 22 CI testing matrix in `.github/workflows/ci.yml`.
+- Multi-version `@stellar/stellar-sdk` matrix job testing compatibility across oldest (`17.1.0`) and newest (`17.4.0`) supported SDK releases.
+- Automated dependency update configuration via `.github/dependabot.yml` targeting npm dependencies and GitHub Actions weekly.
+- Code coverage thresholds enforcing minimum 91% line/statement, 100% function, and 80% branch coverage in `vitest.config.ts`.
+- Expanded `engines.node` specification (`>=20`) and `peerDependencies` range for `@stellar/stellar-sdk` (`>=17.1.0 <=17.4.0`) in `package.json`.
 - Self-contained, offline runnable examples in `examples/`:
   - `examples/decode-envelope.js`: Parses a raw transaction envelope and decodes contract invocation arguments against SEP-41 SAC specs offline.
   - `examples/summarize-simulation.js`: Normalizes simulation RPC responses and decodes contract events offline.
