@@ -53,7 +53,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "^10.0.1",
-    "@stellar/stellar-sdk": "17.2.1",
+    "@stellar/stellar-sdk": "17.4.0",
     "@types/node": "^22.5.5",
     "@vitest/coverage-v8": "2.1.9",
     "eslint": "^10.12.0",
