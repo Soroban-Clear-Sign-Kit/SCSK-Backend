@@ -39,6 +39,8 @@
     "bench": "vitest bench --run test/bench",
     "check:security-model": "node scripts/check-security-model.js",
     "check:packaging": "publint && attw --pack",
+    "docs:api": "typedoc",
+    "test:examples": "node examples/decode-envelope.js && node examples/summarize-simulation.js && node examples/evaluate-policy.js",
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage",
@@ -59,6 +61,7 @@
     "prettier": "^3.9.9",
     "publint": "^0.3.25",
     "tsup": "^8.3.0",
+    "typedoc": "^0.28.20",
     "typescript": "^5.6.2",
     "typescript-eslint": "^8.71.1",
     "vitest": "^2.1.1"

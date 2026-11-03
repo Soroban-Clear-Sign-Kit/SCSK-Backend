@@ -5,3 +5,4 @@ coverage/
 *.log
 testnet.json
 test/fixtures/testnet.json
+docs/api/

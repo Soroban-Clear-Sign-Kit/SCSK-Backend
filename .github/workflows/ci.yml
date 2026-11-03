@@ -27,7 +27,9 @@ jobs:
       - run: pnpm run check:security-model
       - run: pnpm run check:packaging
       - run: pnpm run build
+      - run: pnpm run docs:api
       - run: pnpm test
+      - run: pnpm run test:examples
       - name: Run benchmarks (report-only)
         run: pnpm run bench
         continue-on-error: true

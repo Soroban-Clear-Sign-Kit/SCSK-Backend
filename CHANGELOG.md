@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Self-contained, offline runnable examples in `examples/`:
+  - `examples/decode-envelope.js`: Parses a raw transaction envelope and decodes contract invocation arguments against SEP-41 SAC specs offline.
+  - `examples/summarize-simulation.js`: Normalizes simulation RPC responses and decodes contract events offline.
+  - `examples/evaluate-policy.js`: Evaluates built-in security policies against token transfer and approval scenarios offline.
+- Examples test runner `pnpm run test:examples` and CI verification in `.github/workflows/ci.yml`.
+- TypeDoc configuration `typedoc.json` and script `pnpm run docs:api` generating HTML API references in `docs/api/`.
+- Expanded `README.md` Quick Start with step-by-step offline transaction decoding and full simulation preview examples.
 - Dual ESM and CommonJS exports map in `package.json` with `.d.ts` and `.d.cts` type declarations compatible with `node10`, `node16`, and modern bundlers.
 - Packaging verification suite `pnpm run check:packaging` running `publint` and `@arethetypeswrong/cli` (`attw --pack`) in CI.
 - Consumer compatibility test suite `test/unit/consumer-packaging.test.ts` verifying that `npm pack` creates a valid tarball and all 31 public functions can be cleanly imported in both ESM and CommonJS consumer projects.
