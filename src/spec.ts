@@ -1,10 +1,13 @@
 import { rpc, contract } from "@stellar/stellar-sdk";
 import { WarningCode } from "./errors.js";
+import { withTimeout } from "./timeout.js";
+import { RPC_TIMEOUT_MS } from "./limits.js";
 
 export interface SpecLoaderOptions {
   rpcUrl: string;
   networkPassphrase?: string;
   specs?: Record<string, Buffer | Uint8Array>;
+  timeoutMs?: number | undefined;
 }
 
 export type SpecSource = "wasm" | "sac-builtin" | "injected" | "none";
@@ -36,6 +39,10 @@ class LruCache<K, V> {
     }
     this.cache.set(key, value);
   }
+
+  clear() {
+    this.cache.clear();
+  }
 }
 
 // Caching is keyed by networkPassphrase + contractId + wasmHash.
@@ -44,6 +51,11 @@ class LruCache<K, V> {
 // - _specCache: (networkPassphrase + contractId + wasmHash) -> contract.Spec
 export const _specCache = new LruCache<string, contract.Spec>(64);
 export const _wasmHashCache = new LruCache<string, string>(64);
+
+export function clearSpecCache(): void {
+  _specCache.clear();
+  _wasmHashCache.clear();
+}
 
 // SAC (Stellar Asset Contract) instances have no Wasm, so there is no spec to load.
 // For those, loadSpec returns source: 'sac-builtin' with spec: null, and SEP-41 decoding
@@ -79,13 +91,17 @@ export async function loadSpec(
   }
 
   const networkKey = `${opts.networkPassphrase || ""}-${contractId}`;
+  const timeoutMs = opts.timeoutMs ?? RPC_TIMEOUT_MS;
   const server = new rpc.Server(opts.rpcUrl, {
-    allowHttp: opts.rpcUrl.startsWith("http://"),
+    allowHttp: /^http:\/\//i.test(opts.rpcUrl),
   });
 
   try {
     // 1. Fetch the contract instance to see its executable type and get the wasmHash
-    const instance = await server.getContractInstance(contractId);
+    const instance = await withTimeout(
+      Promise.resolve(server.getContractInstance(contractId)),
+      timeoutMs,
+    );
 
     let isSac = false;
     let wasmHashId: string | undefined;
@@ -126,7 +142,10 @@ export async function loadSpec(
 
     // 3. Fetch Wasm by contract ID (or by hash)
     // The spec says "Get the contract Wasm with the RPC method ... getContractWasmByContractId"
-    const wasmResponse = await server.getContractWasmByContractId(contractId);
+    const wasmResponse = await withTimeout(
+      Promise.resolve(server.getContractWasmByContractId(contractId)),
+      timeoutMs,
+    );
     if (!wasmResponse) {
       warnings.push({
         code: "SPEC_UNAVAILABLE",

@@ -108,16 +108,29 @@ export function verifyIntent(
 
   if (intent.maxSpend) {
     const { token, account, amount } = intent.maxSpend;
+    const normToken = normalize(token);
+    const normAccount = normalize(account);
     const tokenEffects = effects.filter(
-      (e) => e.tokenContractId === token && e.account === account,
+      (e) =>
+        normalize(e.tokenContractId) === normToken &&
+        normalize(e.account) === normAccount,
     );
     let totalNegative = 0n;
     for (const e of tokenEffects) {
       const d = BigInt(e.delta);
       if (d < 0n) totalNegative -= d;
     }
-    const maxAmount = BigInt(amount);
-    if (totalNegative > maxAmount) {
+    let maxAmount: bigint | null = null;
+    try {
+      maxAmount = BigInt(amount);
+    } catch {
+      warnings.push({
+        code: "INTENT_MISMATCH",
+        message: `Invalid maxSpend amount: ${amount}`,
+        path: "maxSpend.amount",
+      });
+    }
+    if (maxAmount !== null && totalNegative > maxAmount) {
       warnings.push({
         code: "INTENT_SPEND_EXCEEDED",
         message: `Spent ${totalNegative}, which exceeds maxSpend of ${maxAmount}`,
@@ -127,12 +140,14 @@ export function verifyIntent(
 
   if (intent.allowedContracts && signerAddress) {
     const allowed = new Set(intent.allowedContracts.map((c) => normalize(c)));
+    const normSigner = normalize(signerAddress);
+    const normSource = sourceAccount ? normalize(sourceAccount) : undefined;
     for (const entry of auth) {
       const isSigner =
         (entry.credentials.type === "address" &&
-          entry.credentials.address === signerAddress) ||
+          normalize(entry.credentials.address) === normSigner) ||
         (entry.credentials.type === "source-account" &&
-          signerAddress === sourceAccount);
+          normSigner === normSource);
       if (isSigner) {
         const walk = (node: AuthNode) => {
           if (node.contractId && !allowed.has(normalize(node.contractId))) {

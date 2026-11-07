@@ -306,8 +306,6 @@ describe("extractTokenEffects", () => {
                 new xdr.Int128Parts({
                   hi: xdr.Int64.fromString("0"),
                   lo: xdr.Uint64.fromString("5"),
-                  hi: 0n,
-                  lo: 5n,
                 }),
               ),
             }),
@@ -630,6 +628,64 @@ describe("extractTokenEffects", () => {
       switch: () => ({ name: "scvI128" }),
       i128: null, // missing parts
     };
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: { v0: { topics, data } },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toEqual([]);
+    expect(res.warnings).toContainEqual(
+      expect.objectContaining({ code: "EVENT_SHAPE_UNKNOWN" }),
+    );
+  });
+
+  it("handles 128-bit amounts where lo has bit 63 set without sign-extension corruption", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = {
+      switch: () => ({ name: "scvI128" }),
+      i128: () => ({
+        hi: () => "1",
+        lo: () => "-1",
+      }),
+    };
+    const events = [
+      {
+        inSuccessfulContractCall: true,
+        event: {
+          type: "contract",
+          contractId,
+          body: { v0: { topics, data } },
+        },
+      } as any,
+    ];
+    const res = extractTokenEffects(events);
+    expect(res.effects).toHaveLength(1);
+    expect(res.effects[0]?.delta).toBe(((1n << 64n) | ((1n << 64n) - 1n)).toString());
+  });
+
+  it("rejects negative token amounts in events with EVENT_SHAPE_UNKNOWN", () => {
+    const topics = [
+      xdr.ScVal.scvSymbol("mint"),
+      xdr.ScVal.scvAddress(
+        xdr.ScAddress.scAddressTypeAccount(
+          xdr.PublicKey.publicKeyTypeEd25519(to),
+        ),
+      ),
+    ];
+    const data = xdr.ScVal.scvI128(new xdr.Int128Parts({ hi: -1n, lo: 1n }));
     const events = [
       {
         inSuccessfulContractCall: true,

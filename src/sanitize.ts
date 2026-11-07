@@ -1,6 +1,9 @@
 import { MAX_DISPLAY_STRING } from "./limits.js";
 
-export function sanitizeString(input: string): {
+export function sanitizeString(
+  input: string,
+  maxLength: number = MAX_DISPLAY_STRING,
+): {
   value: string;
   sanitized: boolean;
   truncated: boolean;
@@ -23,29 +26,44 @@ export function sanitizeString(input: string): {
     sanitized = true;
   }
 
-  // Truncate to MAX_DISPLAY_STRING
-  if (value.length > MAX_DISPLAY_STRING) {
-    value = value.substring(0, MAX_DISPLAY_STRING);
+  // Truncate to maxLength
+  if (value.length > maxLength) {
+    value = value.substring(0, maxLength);
     truncated = true;
   }
 
   return { value, sanitized, truncated };
 }
 
-export function sanitizeRecursive(obj: any): any {
+export function sanitizeRecursive(
+  obj: any,
+  maxLength: number = MAX_DISPLAY_STRING,
+): any {
   if (typeof obj === "string") {
-    return sanitizeString(obj).value;
+    return sanitizeString(obj, maxLength).value;
   }
   if (Array.isArray(obj)) {
-    return obj.map((item) => sanitizeRecursive(item));
+    return obj.map((item) => sanitizeRecursive(item, maxLength));
   }
   if (obj !== null && typeof obj === "object") {
+    if (
+      (obj.kind === "string" || obj.kind === "symbol") &&
+      typeof obj.value === "string"
+    ) {
+      const s = sanitizeString(obj.value, maxLength);
+      return {
+        ...obj,
+        value: s.value,
+        sanitized: Boolean(obj.sanitized || s.sanitized),
+        truncated: Boolean(obj.truncated || s.truncated),
+      };
+    }
     const res: any = {};
     for (const key of Object.keys(obj)) {
       if (key === "hex" || key === "xdr") {
         res[key] = obj[key]; // Do not sanitize hex strings or raw xdr
       } else {
-        res[key] = sanitizeRecursive(obj[key]);
+        res[key] = sanitizeRecursive(obj[key], maxLength);
       }
     }
     return res;

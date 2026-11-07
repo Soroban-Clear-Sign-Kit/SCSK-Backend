@@ -37,6 +37,7 @@ export type ParseResult =
 
 export interface ParseEnvelopeOptions {
   now?: (() => number) | number | undefined;
+  maxXdrLength?: number | undefined;
 }
 
 function getSignatureBytes(val: unknown): Buffer {
@@ -124,7 +125,8 @@ export function parseEnvelope(
     };
   }
 
-  if (xdr.length > MAX_XDR_BASE64_LENGTH) {
+  const maxXdrLength = options?.maxXdrLength ?? MAX_XDR_BASE64_LENGTH;
+  if (xdr.length > maxXdrLength) {
     return {
       success: false,
       error: {

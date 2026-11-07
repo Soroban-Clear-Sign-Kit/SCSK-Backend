@@ -12,6 +12,13 @@ import { RPC_TIMEOUT_MS, DEFAULT_FEE_WARNING_MULTIPLIER } from "./limits.js";
 import { loadSpec, SpecLoaderOptions, SAC_FUNCTIONS } from "./spec.js";
 import { decodeScVal } from "./scval.js";
 import { withTimeout } from "./timeout.js";
+import {
+  unwrap,
+  getSwitchName,
+  toContractId,
+  toBuffer,
+  getArray,
+} from "./accessors.js";
 
 export interface SimulateOptions extends SpecLoaderOptions {
   rpcUrl: string;
@@ -559,7 +566,14 @@ export async function simulateTransaction(
       server.simulateTransaction(innerTx),
       opts.timeoutMs ?? RPC_TIMEOUT_MS,
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message =
+      err &&
+      typeof err === "object" &&
+      "message" in err &&
+      typeof (err as { message: unknown }).message === "string"
+        ? (err as { message: string }).message
+        : "";
     warnings.push({
       code: "SIMULATION_UNAVAILABLE",
       message: message || "RPC unreachable or timed out",

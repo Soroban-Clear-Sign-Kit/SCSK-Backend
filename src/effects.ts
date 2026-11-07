@@ -195,9 +195,17 @@ function extractAmount(
     if (parts) {
       const loRaw = unwrap<bigint | number | string>(parts.lo);
       const hiRaw = unwrap<bigint | number | string>(parts.hi);
-      const lo = BigInt(loRaw?.toString() ?? "0");
+      const lo = BigInt.asUintN(64, BigInt(loRaw?.toString() ?? "0"));
       const hi = BigInt(hiRaw?.toString() ?? "0");
-      return (hi << 64n) | lo;
+      const amount = (hi << 64n) | lo;
+      if (amount < 0n) {
+        warnings.push({
+          code: "EVENT_SHAPE_UNKNOWN",
+          message: "Negative token amount in event",
+        });
+        return null;
+      }
+      return amount;
     }
   } else if (type === "scvMap") {
     const entries = getArray<Record<string, unknown>>(val.map);

@@ -3,13 +3,21 @@ import { DisplayValue } from "./types.js";
 import { WarningCode } from "./errors.js";
 import { MAX_SCVAL_DEPTH, MAX_DISPLAY_STRING } from "./limits.js";
 
+export interface ScValDecodeOptions {
+  maxDepth?: number | undefined;
+  maxStringLength?: number | undefined;
+}
+
 export function decodeScVal(
   scVal: any,
   spec: contract.Spec | null = null,
   typeDef: any = null,
   depth = 0,
+  options?: ScValDecodeOptions,
 ): { value: DisplayValue; warnings: { code: WarningCode; message: string }[] } {
   const warnings: { code: WarningCode; message: string }[] = [];
+  const maxDepth = options?.maxDepth ?? MAX_SCVAL_DEPTH;
+  const maxStringLength = options?.maxStringLength ?? MAX_DISPLAY_STRING;
 
   if (scVal === "void") {
     return { value: { kind: "void" }, warnings };
@@ -88,7 +96,7 @@ export function decodeScVal(
     if ("vec" in scVal && Array.isArray(scVal.vec)) {
       const items: DisplayValue[] = [];
       for (const item of scVal.vec) {
-        const itemRes = decodeScVal(item, spec, null, depth + 1);
+        const itemRes = decodeScVal(item, spec, null, depth + 1, options);
         warnings.push(...itemRes.warnings);
         items.push(itemRes.value);
       }
@@ -99,7 +107,7 @@ export function decodeScVal(
   const scValType =
     typeof scVal?.switch === "function" ? scVal.switch().name : scVal?.type;
 
-  if (depth > MAX_SCVAL_DEPTH) {
+  if (depth > maxDepth) {
     warnings.push({
       code: "VALUE_TOO_DEEP",
       message: "Maximum recursion depth exceeded",
@@ -132,7 +140,7 @@ export function decodeScVal(
             const fType = typeof f.type === "function" ? f.type() : f.type;
             const val = vec[i];
             if (val) {
-              const res = decodeScVal(val, spec, fType, depth + 1);
+              const res = decodeScVal(val, spec, fType, depth + 1, options);
               warnings.push(...res.warnings);
               structFields.push({ name, value: res.value });
             } else {
@@ -165,7 +173,7 @@ export function decodeScVal(
                 typeof mapEntry.val === "function"
                   ? mapEntry.val()
                   : mapEntry.val;
-              const res = decodeScVal(v, spec, fType, depth + 1);
+              const res = decodeScVal(v, spec, fType, depth + 1, options);
               warnings.push(...res.warnings);
               structFields.push({ name, value: res.value });
             } else {
@@ -190,7 +198,7 @@ export function decodeScVal(
           );
           if (c && (c.type || typeof c.type === "function")) {
             const fType = typeof c.type === "function" ? c.type() : c.type;
-            const res = decodeScVal(vec[1], spec, fType, depth + 1);
+            const res = decodeScVal(vec[1], spec, fType, depth + 1, options);
             warnings.push(...res.warnings);
             return {
               value: {
@@ -247,7 +255,7 @@ export function decodeScVal(
         typeof typeDef.value.valueType === "function"
           ? typeDef.value.valueType()
           : typeDef.value.valueType;
-      const res = decodeScVal(scVal, spec, valType, depth + 1);
+      const res = decodeScVal(scVal, spec, valType, depth + 1, options);
       warnings.push(...res.warnings);
       return { value: { kind: "option", value: res.value }, warnings };
     }
@@ -314,9 +322,9 @@ export function decodeScVal(
         const str = scValToNative(scVal).toString();
         let truncated = false;
         let finalStr = str;
-        if (str.length > MAX_DISPLAY_STRING) {
+        if (str.length > maxStringLength) {
           truncated = true;
-          finalStr = str.slice(0, MAX_DISPLAY_STRING);
+          finalStr = str.slice(0, maxStringLength);
         }
         return {
           value: {
@@ -362,6 +370,7 @@ export function decodeScVal(
             spec,
             itemDef,
             depth + 1,
+            options,
           );
           warnings.push(...w);
           decodedItems.push(value);
@@ -387,8 +396,8 @@ export function decodeScVal(
         for (const e of entries) {
           const k = typeof e.key === "function" ? e.key() : e.key;
           const v = typeof e.val === "function" ? e.val() : e.val;
-          const kRes = decodeScVal(k, spec, keyDef, depth + 1);
-          const vRes = decodeScVal(v, spec, valDef, depth + 1);
+          const kRes = decodeScVal(k, spec, keyDef, depth + 1, options);
+          const vRes = decodeScVal(v, spec, valDef, depth + 1, options);
           warnings.push(...kRes.warnings, ...vRes.warnings);
           decodedEntries.push({ key: kRes.value, value: vRes.value });
         }

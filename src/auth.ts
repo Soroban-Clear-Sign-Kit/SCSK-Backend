@@ -10,6 +10,10 @@ export interface AuthDecodeOptions extends SpecLoaderOptions {
   signerAddress?: string | undefined;
   minAuthValidityLedgers?: number | undefined;
   topLevelContractId?: string | undefined;
+  maxAuthDepth?: number | undefined;
+  maxAuthNodes?: number | undefined;
+  maxScValDepth?: number | undefined;
+  maxDisplayStringLength?: number | undefined;
 }
 
 export async function decodeAuthEntries(
@@ -103,20 +107,26 @@ export async function decodeAuthEntries(
     }
 
     let nodeCount = 0;
+    const maxAuthNodes = opts.maxAuthNodes ?? MAX_AUTH_NODES;
+    const maxAuthDepth = opts.maxAuthDepth ?? MAX_AUTH_DEPTH;
+    const scValOpts = {
+      maxDepth: opts.maxScValDepth,
+      maxStringLength: opts.maxDisplayStringLength,
+    };
 
     async function walkInvocation(
       rawInv: unknown,
       depth: number,
     ): Promise<AuthNode> {
       nodeCount++;
-      if (nodeCount > MAX_AUTH_NODES) {
+      if (nodeCount > maxAuthNodes) {
         warnings.push({
           code: "AUTH_TREE_TOO_LARGE",
           message: "Maximum auth nodes exceeded",
         });
         return { kind: "contract-fn", children: [], depth };
       }
-      if (depth > MAX_AUTH_DEPTH) {
+      if (depth > maxAuthDepth) {
         warnings.push({
           code: "AUTH_TREE_TOO_LARGE",
           message: "Maximum auth depth exceeded",
@@ -196,7 +206,7 @@ export async function decodeAuthEntries(
           const sacDef = SAC_FUNCTIONS[functionName];
           decodedArgs = scVals.map((arg: xdr.ScVal | unknown, i: number) => {
             const expected = sacDef?.args[i];
-            const res = decodeScVal(arg, null, null);
+            const res = decodeScVal(arg, null, null, 0, scValOpts);
             warnings.push(...res.warnings);
             return {
               name: expected?.name || null,
@@ -222,7 +232,7 @@ export async function decodeAuthEntries(
                 name = String(input.name);
               }
             }
-            const res = decodeScVal(arg, spec, input?.type || null);
+            const res = decodeScVal(arg, spec, input?.type || null, 0, scValOpts);
             warnings.push(...res.warnings);
             return {
               name,
@@ -232,7 +242,7 @@ export async function decodeAuthEntries(
           });
         } else {
           decodedArgs = scVals.map((arg: xdr.ScVal | unknown) => {
-            const res = decodeScVal(arg, null, null);
+            const res = decodeScVal(arg, null, null, 0, scValOpts);
             warnings.push(...res.warnings);
             return { name: null, typeName: null, value: res.value };
           });

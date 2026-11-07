@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { computeRisk, partitionWarnings } from "../../src/risk.js";
+import {
+  computeRisk,
+  partitionWarnings,
+  resolveWarningSeverity,
+} from "../../src/risk.js";
 import { WarningCode, WARNING_SEVERITY } from "../../src/errors.js";
 
 describe("risk computation", () => {
@@ -121,5 +125,23 @@ describe("computeRisk edge cases", () => {
         true,
       ),
     ).toBe("review");
+  });
+
+  it("allows escalating review warnings to blocked via overrides, but never downgrades blocked warnings", () => {
+    expect(
+      resolveWarningSeverity("SPEC_UNAVAILABLE", {
+        SPEC_UNAVAILABLE: "blocked",
+      }),
+    ).toBe("blocked");
+    expect(
+      resolveWarningSeverity("SIMULATION_FAILED", {
+        SIMULATION_FAILED: "review",
+      }),
+    ).toBe("blocked");
+    expect(
+      computeRisk([{ code: "SPEC_UNAVAILABLE", message: "a" }], true, {
+        SPEC_UNAVAILABLE: "blocked",
+      }),
+    ).toBe("blocked");
   });
 });

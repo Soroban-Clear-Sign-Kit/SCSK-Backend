@@ -16,13 +16,34 @@ import { simulateTransaction } from "./simulate.js";
 import { extractTokenEffects } from "./effects.js";
 import { resolveTokenMetadata } from "./tokens.js";
 import { verifyIntent } from "./intent.js";
-import { computeRisk } from "./risk.js";
+import {
+  computeRisk,
+  resolveWarningSeverity,
+  WarningSeverityOverrides,
+} from "./risk.js";
 import { sanitizeRecursive } from "./sanitize.js";
 import { generateSummary } from "./summary.js";
 import { LocaleStrings } from "./locales/en.js";
 import { stripUndefined } from "./util.js";
 import { withTimeout } from "./timeout.js";
 import { RPC_TIMEOUT_MS } from "./limits.js";
+
+export interface PreviewOptions {
+  minAuthValidityLedgers?: number;
+  feeWarningMultiplier?: number;
+  rpcTimeoutMs?: number;
+  maxXdrLength?: number;
+  maxAuthDepth?: number;
+  maxAuthNodes?: number;
+  maxScValDepth?: number;
+  maxDisplayStringLength?: number;
+  skipTokenMetadata?: boolean;
+  strictUnverifiedNetwork?: boolean;
+  customWarningOverrides?: WarningSeverityOverrides;
+  debug?: boolean;
+  localeStrings?: LocaleStrings;
+  now?: (() => number) | number | undefined;
+}
 
 export interface BuildPreviewInput {
   xdr: string;
@@ -31,14 +52,7 @@ export interface BuildPreviewInput {
   signerAddress?: string;
   intent?: Intent;
   specs?: Record<string, Buffer | Uint8Array>;
-  options?: {
-    minAuthValidityLedgers?: number;
-    feeWarningMultiplier?: number;
-    rpcTimeoutMs?: number;
-    debug?: boolean;
-    localeStrings?: LocaleStrings;
-    now?: (() => number) | number | undefined;
-  };
+  options?: PreviewOptions;
 }
 
 /** Builds the preview returned when processing must stop: every warning is forced to "blocked". */
@@ -79,7 +93,16 @@ export async function buildPreview(
     warns: { code: WarningCode; message: string; path?: string }[],
   ) => {
     for (const w of warns) {
-      warnings.push({ ...w, severity: WARNING_SEVERITY[w.code] });
+      warnings.push({
+        ...w,
+        severity:
+          resolveWarningSeverity(
+            w.code,
+            input.options?.customWarningOverrides,
+          ) ??
+          WARNING_SEVERITY[w.code] ??
+          "blocked",
+      });
     }
   };
 
@@ -87,7 +110,7 @@ export async function buildPreview(
 
   try {
     const server = new rpc.Server(input.rpcUrl, {
-      allowHttp: input.rpcUrl.startsWith("http://"),
+      allowHttp: /^http:\/\//i.test(input.rpcUrl),
     });
     let rpcMatches = false;
     let rpcNetwork: rpc.Api.GetNetworkResponse;
@@ -111,6 +134,18 @@ export async function buildPreview(
         rpcMatches = true;
       }
     } catch (e) {
+      if (input.options?.strictUnverifiedNetwork) {
+        addWarning([
+          {
+            code: "NETWORK_MISMATCH",
+            message: "Unable to verify RPC network passphrase",
+          },
+        ]);
+        return blockedPreview(input, warnings, {
+          rpcMatches: false,
+          signatureBound: false,
+        });
+      }
       // ignore if getNetwork fails, rely on simulation
     }
 
@@ -118,7 +153,10 @@ export async function buildPreview(
       input.xdr,
       input.networkPassphrase,
       undefined,
-      { now: input.options?.now },
+      {
+        now: input.options?.now,
+        maxXdrLength: input.options?.maxXdrLength,
+      },
     );
     if (!envResult.success) {
       addWarning([envResult.error]);
@@ -152,6 +190,7 @@ export async function buildPreview(
         networkPassphrase: input.networkPassphrase,
         rpcUrl: input.rpcUrl,
         specs: input.specs,
+        timeoutMs: input.options?.rpcTimeoutMs,
       });
       const invResult = await decodeInvocation(op, invOpts);
       invocation = invResult.invocation;
@@ -201,16 +240,18 @@ export async function buildPreview(
       effects = effResult.effects;
       addWarning(effResult.warnings);
 
-      const metaResult = await resolveTokenMetadata(
-        effects,
-        stripUndefined({
-          rpcUrl: input.rpcUrl,
-          networkPassphrase: input.networkPassphrase,
-          sourceAccount: tx.source,
-          timeoutMs: input.options?.rpcTimeoutMs,
-        }),
-      );
-      addWarning(metaResult.warnings);
+      if (!input.options?.skipTokenMetadata) {
+        const metaResult = await resolveTokenMetadata(
+          effects,
+          stripUndefined({
+            rpcUrl: input.rpcUrl,
+            networkPassphrase: input.networkPassphrase,
+            sourceAccount: tx.source,
+            timeoutMs: input.options?.rpcTimeoutMs,
+          }),
+        );
+        addWarning(metaResult.warnings);
+      }
     }
 
     // Auth
@@ -230,6 +271,11 @@ export async function buildPreview(
       rpcUrl: input.rpcUrl,
       networkPassphrase: input.networkPassphrase,
       minAuthValidityLedgers: input.options?.minAuthValidityLedgers,
+      maxAuthDepth: input.options?.maxAuthDepth,
+      maxAuthNodes: input.options?.maxAuthNodes,
+      maxScValDepth: input.options?.maxScValDepth,
+      maxDisplayStringLength: input.options?.maxDisplayStringLength,
+      timeoutMs: input.options?.rpcTimeoutMs,
       signerAddress: input.signerAddress,
       topLevelContractId: invocation?.contractId,
       specs: input.specs,
@@ -266,9 +312,14 @@ export async function buildPreview(
         w.code === "INTENT_SPEND_EXCEEDED" ||
         w.code === "INTENT_UNEXPECTED_AUTH",
     );
-    const intentVerified = !!input.intent && !hasIntentMismatch;
+    const intentVerified =
+      !!input.intent && !!invocation && !hasIntentMismatch;
 
-    const risk = computeRisk(warnings, intentVerified);
+    const risk = computeRisk(
+      warnings,
+      intentVerified,
+      input.options?.customWarningOverrides,
+    );
 
     const preview = {
       version: 1 as const,
@@ -310,7 +361,10 @@ export async function buildPreview(
       raw: { xdr: input.xdr },
     };
 
-    return sanitizeRecursive(preview) as ClearSignPreview;
+    return sanitizeRecursive(
+      preview,
+      input.options?.maxDisplayStringLength,
+    ) as ClearSignPreview;
   } catch (err: unknown) {
     if (input.options?.debug) {
       console.error(

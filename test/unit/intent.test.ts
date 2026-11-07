@@ -296,4 +296,25 @@ describe("intent verification", () => {
     const { warnings } = verifyIntent(intent, inv, [], [], "G123");
     expect(warnings).toEqual([]);
   });
+
+  it("reports INTENT_MISMATCH instead of throwing when maxSpend.amount is not a valid integer", () => {
+    const intent: Intent = {
+      contractId: "C123",
+      functionName: "transfer",
+      maxSpend: { token: "T1", account: "G123", amount: "not-a-number" },
+    };
+    const { warnings } = verifyIntent(
+      intent,
+      defaultInvocation,
+      [],
+      [{ tokenContractId: "T1", account: "G123", delta: "-10" }],
+      "G123",
+    );
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: "INTENT_MISMATCH",
+        path: "maxSpend.amount",
+      }),
+    );
+  });
 });

@@ -1,5 +1,23 @@
 import { WarningCode, WarningSeverity, WARNING_SEVERITY } from "./errors.js";
 
+export type WarningSeverityOverrides = Partial<
+  Record<WarningCode, WarningSeverity>
+>;
+
+/**
+ * Resolves the effective severity for a warning code.
+ * Built-in "blocked" warnings can never be downgraded to "review".
+ */
+export function resolveWarningSeverity(
+  code: WarningCode,
+  overrides?: WarningSeverityOverrides,
+): WarningSeverity {
+  const base = WARNING_SEVERITY[code];
+  if (base === "blocked") return "blocked";
+  const override = overrides?.[code];
+  return override === "blocked" ? "blocked" : base;
+}
+
 export function computeRisk(
   warnings: {
     code: WarningCode;
@@ -8,6 +26,7 @@ export function computeRisk(
     severity?: WarningSeverity | undefined;
   }[],
   intentVerified: boolean = false,
+  overrides?: WarningSeverityOverrides,
 ): "ok" | "review" | "blocked" {
   let hasReview = false;
   const clearedCodes = new Set([
@@ -16,7 +35,11 @@ export function computeRisk(
     "RESTORE_REQUIRED",
   ]);
   for (const w of warnings) {
-    const sev = w.severity ?? WARNING_SEVERITY[w.code];
+    const baseSev = w.severity ?? WARNING_SEVERITY[w.code];
+    const sev =
+      overrides && w.code in overrides
+        ? resolveWarningSeverity(w.code, overrides)
+        : baseSev;
     if (sev === "blocked") return "blocked";
     if (sev === "review") {
       if (intentVerified && clearedCodes.has(w.code)) {

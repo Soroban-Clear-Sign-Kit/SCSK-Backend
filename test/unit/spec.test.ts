@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { loadSpec, _specCache, _wasmHashCache } from "../../src/spec.js";
+import {
+  loadSpec,
+  clearSpecCache,
+  _specCache,
+  _wasmHashCache,
+} from "../../src/spec.js";
 import { rpc, contract } from "@stellar/stellar-sdk";
 
 vi.mock("@stellar/stellar-sdk", async () => {
@@ -298,5 +303,13 @@ describe("spec caching", () => {
     const res = await loadSpec(contractId, opts);
 
     expect(res.source).toBe("wasm");
+  });
+
+  it("clearSpecCache resets both caches", () => {
+    _specCache.set("k1", {} as any);
+    _wasmHashCache.set("k2", "h2");
+    clearSpecCache();
+    expect(_specCache.get("k1")).toBeUndefined();
+    expect(_wasmHashCache.get("k2")).toBeUndefined();
   });
 });

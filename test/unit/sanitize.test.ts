@@ -95,4 +95,20 @@ describe("sanitizeRecursive passthrough", () => {
   it("sanitizes strings inside nested arrays", () => {
     expect(sanitizeRecursive({ a: [["x\u0007y"]] })).toEqual({ a: [["x?y"]] });
   });
+
+  it("updates sanitized and truncated flags on DisplayValue string/symbol nodes and respects maxLength", () => {
+    const node = {
+      kind: "string",
+      value: "Hello\u202EWorld12345",
+      sanitized: false,
+      truncated: false,
+    };
+    const res = sanitizeRecursive(node, 10);
+    expect(res).toEqual({
+      kind: "string",
+      value: "HelloWorld",
+      sanitized: true,
+      truncated: true,
+    });
+  });
 });

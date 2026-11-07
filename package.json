@@ -33,8 +33,6 @@
     "test": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:coverage": "vitest run --dir test/unit --coverage",
-    "lint:fix": "eslint src test --fix",
-    "format": "prettier --write .",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm test",
     "prepublishOnly": "pnpm run check && pnpm run build"
   },

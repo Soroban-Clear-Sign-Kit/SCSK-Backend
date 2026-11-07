@@ -526,6 +526,7 @@ describe("buildPreview options", () => {
     vi.mocked(envelope.parseEnvelope).mockReturnValue({
       success: true,
       warnings: [],
+      signatureBound: false,
       envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
       innerTransaction: {
         source: "GSOURCE",
@@ -637,6 +638,7 @@ describe("buildPreview RPC timeouts", () => {
       vi.mocked(envelope.parseEnvelope).mockReturnValue({
         success: true,
         warnings: [],
+        signatureBound: false,
         envelope: { source: "", sequence: "", fee: "", operations: [] } as any,
         innerTransaction: { operations: [] } as any,
       });
@@ -664,7 +666,7 @@ describe("buildPreview RPC timeouts", () => {
       await vi.advanceTimersByTimeAsync(500);
       const res = await pending;
 
-      expect(res.network.verified).toBe(false);
+      expect(res.network.rpcMatches).toBe(false);
       expect(res.risk).toBe("ok");
     } finally {
       vi.useRealTimers();
@@ -720,5 +722,74 @@ describe("buildPreview debug logging", () => {
       expect.stringContaining("kaboom"),
     );
     spy.mockRestore();
+  });
+
+  it("respects strictUnverifiedNetwork, skipTokenMetadata, and customWarningOverrides", async () => {
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: vi.fn().mockRejectedValue(new Error("down")),
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 1 }),
+        }) as any,
+    );
+
+    const strictRes = await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: { strictUnverifiedNetwork: true },
+    });
+    expect(strictRes.risk).toBe("blocked");
+    expect(strictRes.warnings[0]?.code).toBe("NETWORK_MISMATCH");
+
+    vi.mocked(rpc.Server).mockImplementation(
+      () =>
+        ({
+          getNetwork: vi.fn().mockResolvedValue({ passphrase: "test" }),
+          getLatestLedger: vi.fn().mockResolvedValue({ sequence: 1 }),
+        }) as any,
+    );
+    vi.mocked(envelope.parseEnvelope).mockReturnValue({
+      success: true,
+      innerTransaction: {
+        source: "S",
+        sequence: "1",
+        fee: "100",
+        operations: [{ type: "payment" }],
+      } as any,
+      envelope: {
+        source: "S",
+        sequence: "1",
+        fee: "100",
+        operations: [{ type: "payment", decoded: false, raw: {} }],
+      },
+      warnings: [{ code: "CLASSIC_OP_NOT_DECODED", message: "classic" }],
+      signatureBound: false,
+    });
+    vi.mocked(invocation.decodeInvocation).mockResolvedValue({
+      invocation: undefined as any,
+      warnings: [],
+    });
+    vi.mocked(auth.decodeAuthEntries).mockResolvedValue({
+      auth: [],
+      warnings: [],
+    });
+    vi.mocked(intent.verifyIntent).mockReturnValue({ warnings: [] });
+    vi.mocked(summary.generateSummary).mockReturnValue([]);
+    vi.mocked(risk.resolveWarningSeverity).mockImplementation(
+      (code, overrides) => (overrides?.[code] === "blocked" ? "blocked" : "review"),
+    );
+    vi.mocked(risk.computeRisk).mockReturnValue("blocked");
+
+    const overrideRes = await buildPreview({
+      xdr: "ok",
+      rpcUrl: "http://mock",
+      networkPassphrase: "test",
+      options: {
+        customWarningOverrides: { CLASSIC_OP_NOT_DECODED: "blocked" },
+      },
+    });
+    expect(overrideRes.risk).toBe("blocked");
+    expect(overrideRes.warnings[0]?.severity).toBe("blocked");
   });
 });
